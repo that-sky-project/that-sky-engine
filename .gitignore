@@ -1,8 +1,14 @@
+# Folder
 .vscode/
 dist/
 
+# Test
 test.*
+
+# Build
 *.a
 *.o
 *.obj
 *.vcxproj.user
+*.dll
+*.exe

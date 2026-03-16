@@ -1,7 +1,20 @@
+#ifndef __META_HPP__
+#define __META_HPP__
+
 #include <stdint.h>
 #include <type_traits>
 #include <vector>
 #include <string>
+
+// ----------------------------------------------------------------------------
+// [SECTION] Declarations
+// ----------------------------------------------------------------------------
+
+class MetaFunction;
+class MetaVariable;
+class MetaMemberFunction;
+class MetaMemberVariable;
+class MetaType;
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaObject
@@ -29,10 +42,40 @@ public:
 };
 
 // ----------------------------------------------------------------------------
-// [SECTION] MetaType
+// [SECTION] MetaFunction
 // ----------------------------------------------------------------------------
 
-class MetaType;
+class MetaFunction: public MetaObject<MetaFunction> {
+
+};
+
+// ----------------------------------------------------------------------------
+// [SECTION] MetaVariable
+// ----------------------------------------------------------------------------
+
+class MetaVariable: public MetaObject<MetaVariable> {
+
+};
+
+// ----------------------------------------------------------------------------
+// [SECTION] MetaMemberFunction
+// ----------------------------------------------------------------------------
+
+class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
+
+};
+
+// ----------------------------------------------------------------------------
+// [SECTION] MetaMemberVariable
+// ----------------------------------------------------------------------------
+
+class MetaMemberVariable: public MetaObject<MetaMemberVariable> {
+
+};
+
+// ----------------------------------------------------------------------------
+// [SECTION] MetaType
+// ----------------------------------------------------------------------------
 
 class MetaType: public MetaObject<MetaType> {
 public:
@@ -49,6 +92,21 @@ public:
 
   virtual ~MetaType() = default;
 
+  // Get the size of the type.
+  virtual size_t GetSizeOf() = 0;
+
+  // Get the alignment of the type.
+  virtual size_t GetAlignOf() = 0;
+
+  // Create an object of the type.
+  virtual void *CreateObject() = 0;
+
+  // Delete an created object of the type.
+  virtual void DeleteObject(void *p) = 0;
+
+  //virtual void f1() = 0;
+  //virtual void f2() = 0;
+
   void *unk_1;
   MetaType *m_self;
 };
@@ -56,18 +114,66 @@ public:
 class MetaTypeBool: public MetaType {
 public:
   MetaTypeBool(const char *name): MetaType(name) { }
+
+  virtual size_t GetSizeOf() override {
+    return 1;
+  }
+
+  virtual size_t GetAlignOf() override {
+    return 1;
+  }
+
+  virtual void *CreateObject() override {
+    return new bool;
+  }
+
+  virtual void DeleteObject(void *p) override {
+    delete (bool *)p;
+  }
 };
 
 template<typename T>
 class MetaTypeNumber: public MetaType {
 public:
   MetaTypeNumber(const char *name): MetaType(name) { }
+
+  virtual size_t GetSizeOf() override {
+    return sizeof(T);
+  }
+
+  virtual size_t GetAlignOf() override {
+    return alignof(T);
+  }
+
+  virtual void *CreateObject() override {
+    return new T;
+  }
+
+  virtual void DeleteObject(void *p) override {
+    delete (T *)p;
+  }
 };
 
 template<typename T>
 class MetaTypeString: public MetaType {
 public:
   MetaTypeString(const char *name): MetaType(name) { }
+
+  virtual size_t GetSizeOf() override {
+    return sizeof(T);
+  }
+
+  virtual size_t GetAlignOf() override {
+    return alignof(T);
+  }
+
+  virtual void *CreateObject() override {
+    return new T;
+  }
+
+  virtual void DeleteObject(void *p) override {
+    delete (T *)p;
+  }
 };
 
 // ----------------------------------------------------------------------------
@@ -77,6 +183,20 @@ public:
 class MetaClassVoid: public MetaType {
 public:
   MetaClassVoid(const char *name): MetaType(name) { }
+
+  virtual size_t GetSizeOf() override {
+    return 0;
+  }
+
+  virtual size_t GetAlignOf() override {
+    return 0;
+  }
+
+  virtual void *CreateObject() override {
+    return nullptr;
+  }
+
+  virtual void DeleteObject(void *p) override { }
 };
 
 using PFN_RegisterClass = MetaClassVoid *(__fastcall *)();
@@ -109,24 +229,85 @@ public:
   void *m_vtableCache;
 };
 
-// Register a class.
-#define META_REGISTER_CLASS(T, P) \
-MetaClassImpl<T> g_metaClass_##T{#T, P};\
-template<>\
-MetaClassVoid *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
-  return (MetaClassVoid *)g_metaClass_##T.m_self;\
+// ----------------------------------------------------------------------------
+// [SECTION] Functions
+// ----------------------------------------------------------------------------
+
+MetaType *GetMetaType();
+
+// Get MetaType from type name.
+template<typename T>
+MetaType *GetMetaTypeByType() {
+  return nullptr;
 }
+
+// Get MetaClassImpl from class.
+template<typename T>
+MetaClassVoid *GetMetaClassByType() {
+  return nullptr;
+}
+
+// ----------------------------------------------------------------------------
+// [SECTION] Object
+// ----------------------------------------------------------------------------
 
 class Object { };
 class MetaClass { };
 
 // ----------------------------------------------------------------------------
-// [SECTION] Functions
+// [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
 
-// Get metaclass from type pointer.
-template<typename Tp>
-MetaClassVoid *GetMetaClassByType() {
-  using T = typename std::remove_pointer<Tp>::type;
-  return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();
+class MetaSystem: public MetaClass {
+  void Initialize() {
+    
+  }
+};
+
+// ----------------------------------------------------------------------------
+// [SECTION] Macros
+// ----------------------------------------------------------------------------
+
+// Declare a type.
+#define META_DECLARE_TYPE(T)\
+template<> MetaType *GetMetaTypeByType<T>();
+
+// Declare a class.
+#define META_DECLARE_CLASS(T) \
+template<> MetaClassVoid *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+template<> MetaClassVoid *GetMetaClassByType<T>();
+
+// Register a class.
+#define META_REGISTER_CLASS(T, P) \
+static MetaClassImpl<T> g_metaClass_##T{#T, P};\
+template<> MetaClassVoid *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
+  return static_cast<MetaClassVoid *>(g_metaClass_##T.m_self);\
+}\
+template<> MetaClassVoid *GetMetaClassByType<T>() {\
+  return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
 }
+
+using cstring = const char *;
+using TgcString = std::string;
+
+META_DECLARE_TYPE(bool);
+
+META_DECLARE_TYPE(uint8_t);
+META_DECLARE_TYPE(int8_t);
+META_DECLARE_TYPE(uint16_t);
+META_DECLARE_TYPE(int16_t);
+META_DECLARE_TYPE(uint32_t);
+META_DECLARE_TYPE(int32_t);
+META_DECLARE_TYPE(uint64_t);
+META_DECLARE_TYPE(int64_t);
+META_DECLARE_TYPE(float);
+META_DECLARE_TYPE(double);
+
+META_DECLARE_TYPE(cstring);
+META_DECLARE_TYPE(TgcString);
+
+META_DECLARE_CLASS(Object);
+META_DECLARE_CLASS(MetaClass);
+
+// #ifndef __META_HPP__
+#endif

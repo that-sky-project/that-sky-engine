@@ -1,44 +1,60 @@
 #include "Meta.hpp"
 
+// Register a type.
+#define META_REGISTER_TYPE(T)\
+  template<>\
+  MetaType *GetMetaTypeByType<T>() {\
+    return g_metaType_##T.m_self;\
+  }
+
+// Register a number type.
+#define META_REGISTER_TYPE_NUMBER(T)\
+  static MetaTypeNumber<T> g_metaType_##T{#T};\
+  META_REGISTER_TYPE(T)
+
+// Register a number type.
+#define META_REGISTER_TYPE_STRING(T)\
+  static MetaTypeString<T> g_metaType_##T{#T};\
+  META_REGISTER_TYPE(T)
+
+// ----------------------------------------------------------------------------
+// [SECTION] MetaType
+// ----------------------------------------------------------------------------
+
 MetaTypeBool g_metaType_bool{"bool"};
+template<>
+MetaType *GetMetaTypeByType<bool>() {
+  return g_metaType_bool.m_self;
+}
 
-MetaTypeNumber<uint8_t> g_metaType_uint8_t{"uint8_t"};
-MetaTypeNumber<int8_t> g_metaType_int8_t{"int8_t"};
-MetaTypeNumber<uint16_t> g_metaType_uint16_t{"uint16_t"};
-MetaTypeNumber<int16_t> g_metaType_int16_t{"int16_t"};
-MetaTypeNumber<uint32_t> g_metaType_uint32_t{"uint32_t"};
-MetaTypeNumber<int32_t> g_metaType_int32_t{"int32_t"};
-MetaTypeNumber<uint64_t> g_metaType_uint64_t{"uint64_t"};
-MetaTypeNumber<int64_t> g_metaType_int64_t{"int64_t"};
-MetaTypeNumber<float> g_metaType_float{"float"};
-MetaTypeNumber<double> g_metaType_double{"double"};
+META_REGISTER_TYPE_NUMBER(uint8_t);
+META_REGISTER_TYPE_NUMBER(int8_t);
+META_REGISTER_TYPE_NUMBER(uint16_t);
+META_REGISTER_TYPE_NUMBER(int16_t);
+META_REGISTER_TYPE_NUMBER(uint32_t);
+META_REGISTER_TYPE_NUMBER(int32_t);
+META_REGISTER_TYPE_NUMBER(uint64_t);
+META_REGISTER_TYPE_NUMBER(int64_t);
+META_REGISTER_TYPE_NUMBER(float);
+META_REGISTER_TYPE_NUMBER(double);
 
-MetaTypeString<const char *> g_metaType_cstring{"cstring"};
-MetaTypeString<std::string> g_metaType_TgcString{"TgcString"};
+META_REGISTER_TYPE_STRING(cstring);
+META_REGISTER_TYPE_STRING(TgcString);
 
 MetaClassVoid g_metaType_void{"void"};
+MetaType *GetMetaType() {
+  return g_metaType_void.m_self;
+}
+
+// ----------------------------------------------------------------------------
+// [SECTION] Object
+// ----------------------------------------------------------------------------
 
 META_REGISTER_CLASS(Object, nullptr);
 META_REGISTER_CLASS(MetaClass, nullptr);
 
-#include <stdio.h>
+// ----------------------------------------------------------------------------
+// [SECTION] MetaSystem
+// ----------------------------------------------------------------------------
 
-class Test {
-
-};
-META_REGISTER_CLASS(Test, nullptr);
-
-class TestChild: public Test {
-
-};
-META_REGISTER_CLASS(TestChild, MetaClassImpl<Test>::Must_call_META_REGISTER_CLASS);
-
-int main() {
-  for (auto p = MetaObject<MetaType>::m_List(); p; p = p->m_prev) {
-    printf("%p MetaType<%s>\n", p, p->m_name);
-  }
-
-  printf("%p\n", MetaClassImpl<Object>::Must_call_META_REGISTER_CLASS());
-
-  return 0;
-}
+META_REGISTER_CLASS(MetaSystem, nullptr);
