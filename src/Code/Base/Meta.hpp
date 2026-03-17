@@ -199,7 +199,7 @@ public:
   virtual void DeleteObject(void *p) override { }
 };
 
-using PFN_RegisterClass = MetaClassVoid *(__fastcall *)();
+using PFN_RegisterClass = MetaClassVoid *(*)();
 
 template<typename T>
 class MetaClassImpl: public MetaClassVoid {
@@ -242,8 +242,10 @@ MetaType *GetMetaTypeByType() {
 }
 
 // Get MetaClassImpl from class.
-template<typename T>
+template<typename Tp>
 MetaClassVoid *GetMetaClassByType() {
+  //using T = typename std::remove_pointer<Tp>::type;
+  //return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();
   return nullptr;
 }
 
@@ -275,7 +277,7 @@ template<> MetaType *GetMetaTypeByType<T>();
 // Declare a class.
 #define META_DECLARE_CLASS(T) \
 template<> MetaClassVoid *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
-template<> MetaClassVoid *GetMetaClassByType<T>();
+template<> MetaClassVoid *GetMetaClassByType<T *>();
 
 // Register a class.
 #define META_REGISTER_CLASS(T, P) \
@@ -283,7 +285,7 @@ static MetaClassImpl<T> g_metaClass_##T{#T, P};\
 template<> MetaClassVoid *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
   return static_cast<MetaClassVoid *>(g_metaClass_##T.m_self);\
 }\
-template<> MetaClassVoid *GetMetaClassByType<T>() {\
+template<> MetaClassVoid *GetMetaClassByType<T *>() {\
   return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
 }
 
