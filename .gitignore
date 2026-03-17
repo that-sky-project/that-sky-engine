@@ -1,5 +1,6 @@
 # Folder
 .vscode/
+.vs/
 dist/
 
 # Test
