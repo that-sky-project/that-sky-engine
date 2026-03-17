@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <vector>
 #include <string>
+#include "lua.h"
 
 // ----------------------------------------------------------------------------
 // [SECTION] Declarations
@@ -104,8 +105,49 @@ public:
   // Delete an created object of the type.
   virtual void DeleteObject(void *p) = 0;
 
-  //virtual void f1() = 0;
-  //virtual void f2() = 0;
+  virtual void *Unk1(void *p) = 0;
+
+  virtual void Unk2() = 0;
+
+  // Dynamic cast an object "sourceObject" of type specified by "sourceType" to
+  // an object "targetObject" of type specified by this.
+  virtual void DynamicCast(
+    void *targetObject,
+    void *sourceObject,
+    MetaType &sourceType
+  ) = 0;
+
+  virtual bool Unk3() = 0;
+
+  virtual bool Unk4() = 0;
+
+  // Convert the type represented by the metaclass to a lua number (double).
+  virtual double ToNumber(void *object) = 0;
+
+  // Convert the type represented by the metaclass to a string.
+  // NOTE: This function is considered as single-threaded.
+  virtual const char *ToString(void *object) = 0;
+
+  virtual MetaType *GetSelf() = 0;
+
+  // Write the type represented by the metaclass to lua_State.
+  virtual void WriteType(
+    lua_State *L,
+    void *object
+  ) = 0;
+
+  // Read the type represented by the metaclass from lua_State.
+  virtual void ReadType(
+    lua_State *L,
+    int index,
+    void *object
+  ) = 0;
+
+  virtual MetaType *Copy() = 0;
+
+  virtual void SimpleCopy(
+    void *target
+  ) = 0;
 
   void *unk_1;
   MetaType *m_self;
@@ -116,11 +158,11 @@ public:
   MetaTypeBool(const char *name): MetaType(name) { }
 
   virtual size_t GetSizeOf() override {
-    return 1;
+    return sizeof(bool);
   }
 
   virtual size_t GetAlignOf() override {
-    return 1;
+    return alignof(bool);
   }
 
   virtual void *CreateObject() override {
@@ -129,6 +171,68 @@ public:
 
   virtual void DeleteObject(void *p) override {
     delete (bool *)p;
+  }
+
+  virtual void *Unk1(void *p) override {
+    return p;
+  }
+
+  virtual void Unk2() override {
+    ;
+  }
+
+  virtual void DynamicCast(
+    void *targetObject,
+    void *sourceObject,
+    MetaType &sourceType
+  ) override {
+    double num = sourceType.ToNumber(sourceObject);
+    *(bool *)targetObject = !!num;
+  }
+
+  virtual bool Unk3() override {
+    return true;
+  }
+
+  virtual bool Unk4() override {
+    return false;
+  }
+
+  virtual double ToNumber(void *object) override {
+    return *(bool *)object ? 1.0 : 0.0;
+  }
+
+  virtual const char *ToString(void *object) override {
+    return *(bool *)object ? "true" : "false";
+  }
+
+  virtual MetaType *GetSelf() override {
+    return nullptr;
+  }
+
+  virtual void WriteType(
+    lua_State *L,
+    void *object
+  ) override {
+    lua_pushboolean(L, *(bool *)object);
+  }
+
+  virtual void ReadType(
+    lua_State *L,
+    int index,
+    void *object
+  ) override {
+    *(bool *)object = !!lua_toboolean(L, index);
+  }
+
+  virtual MetaType *Copy() override {
+    return new MetaTypeBool{*this};
+  }
+
+  virtual void SimpleCopy(
+    void *target
+  ) override {
+    *(MetaType *)target = *(MetaType *)this;
   }
 };
 
