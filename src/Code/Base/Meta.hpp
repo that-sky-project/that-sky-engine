@@ -94,16 +94,16 @@ public:
   virtual ~MetaType() = default;
 
   // Get the size of the type.
-  virtual size_t GetSizeOf() = 0;
+  virtual size_t SizeOfType() = 0;
 
   // Get the alignment of the type.
-  virtual size_t GetAlignOf() = 0;
+  virtual size_t AlignOfType() = 0;
 
   // Create an object of the type.
-  virtual void *CreateObject() = 0;
+  virtual void *CreateByType() = 0;
 
   // Delete an created object of the type.
-  virtual void DeleteObject(void *p) = 0;
+  virtual void DeleteByType(void *p) = 0;
 
   virtual void *Unk1(void *p) = 0;
 
@@ -122,7 +122,7 @@ public:
   virtual bool Unk4() = 0;
 
   // Convert the type represented by the metaclass to a lua number (double).
-  virtual double ToNumber(void *object) = 0;
+  virtual lua_Number ToNumber(void *object) = 0;
 
   // Convert the type represented by the metaclass to a string.
   // NOTE: This function is considered as single-threaded.
@@ -147,29 +147,45 @@ public:
 
   virtual void SimpleCopy(
     void *target
-  ) = 0;
+  ) {
+    *(MetaType *)target = *(MetaType *)this;
+  }
 
   void *unk_1;
   MetaType *m_self;
+
+private:
+  // Helper functions for extracting C string.
+  static inline const char *extractCString(
+    const char *const *ptr
+  ) {
+    return *ptr;
+  }
+
+  static inline const char *extractCString(
+    std::string *ptr
+  ) {
+    return ptr->c_str();
+  }
 };
 
 class MetaTypeBool: public MetaType {
 public:
   MetaTypeBool(const char *name): MetaType(name) { }
 
-  virtual size_t GetSizeOf() override {
+  virtual size_t SizeOfType() override {
     return sizeof(bool);
   }
 
-  virtual size_t GetAlignOf() override {
+  virtual size_t AlignOfType() override {
     return alignof(bool);
   }
 
-  virtual void *CreateObject() override {
+  virtual void *CreateByType() override {
     return new bool;
   }
 
-  virtual void DeleteObject(void *p) override {
+  virtual void DeleteByType(void *p) override {
     delete (bool *)p;
   }
 
@@ -198,7 +214,7 @@ public:
     return false;
   }
 
-  virtual double ToNumber(void *object) override {
+  virtual lua_Number ToNumber(void *object) override {
     return *(bool *)object ? 1.0 : 0.0;
   }
 
@@ -228,12 +244,6 @@ public:
   virtual MetaType *Copy() override {
     return new MetaTypeBool{*this};
   }
-
-  virtual void SimpleCopy(
-    void *target
-  ) override {
-    *(MetaType *)target = *(MetaType *)this;
-  }
 };
 
 template<typename T>
@@ -241,20 +251,69 @@ class MetaTypeNumber: public MetaType {
 public:
   MetaTypeNumber(const char *name): MetaType(name) { }
 
-  virtual size_t GetSizeOf() override {
+  virtual size_t SizeOfType() override {
     return sizeof(T);
   }
 
-  virtual size_t GetAlignOf() override {
+  virtual size_t AlignOfType() override {
     return alignof(T);
   }
 
-  virtual void *CreateObject() override {
+  virtual void *CreateByType() override {
     return new T;
   }
 
-  virtual void DeleteObject(void *p) override {
+  virtual void DeleteByType(void *p) override {
     delete (T *)p;
+  }
+
+  virtual void *Unk1(void *p) override;
+
+  virtual void Unk2() override;
+
+  virtual void DynamicCast(
+    void *targetObject,
+    void *sourceObject,
+    MetaType &sourceType
+  ) override {
+    *(T *)targetObject = (T)sourceType.ToNumber(sourceObject);
+  }
+
+  virtual bool Unk3() override;
+
+  virtual bool Unk4() override;
+
+  virtual lua_Number ToNumber(
+    void *object
+  ) override {
+    return (lua_Number)*(T *)object;
+  }
+
+  virtual const char *ToString(
+    void *object
+  ) override {
+    static char buf[80];
+    snprintf(buf, 65, "%d", *(T *)object);
+    return buf;
+  }
+
+  virtual MetaType *GetSelf() override;
+
+  virtual void WriteType(
+    lua_State *L,
+    void *object
+  ) override {
+    lua_pushnumber(L, (lua_Number)*(T *)object);
+  }
+
+  virtual void ReadType(
+    lua_State *L,
+    int index,
+    void *object
+  ) override;
+
+  virtual MetaType *Copy() override {
+    return new MetaTypeNumber<T>{*this};
   }
 };
 
@@ -263,20 +322,67 @@ class MetaTypeString: public MetaType {
 public:
   MetaTypeString(const char *name): MetaType(name) { }
 
-  virtual size_t GetSizeOf() override {
+  virtual size_t SizeOfType() override {
     return sizeof(T);
   }
 
-  virtual size_t GetAlignOf() override {
+  virtual size_t AlignOfType() override {
     return alignof(T);
   }
 
-  virtual void *CreateObject() override {
+  virtual void *CreateByType() override {
     return new T;
   }
 
-  virtual void DeleteObject(void *p) override {
+  virtual void DeleteByType(void *p) override {
     delete (T *)p;
+  }
+
+  virtual void *Unk1(void *p) override;
+
+  virtual void Unk2() override;
+
+  virtual void DynamicCast(
+    void *targetObject,
+    void *sourceObject,
+    MetaType &sourceType
+  ) override;
+
+  virtual bool Unk3() override;
+
+  virtual bool Unk4() override;
+
+  virtual lua_Number ToNumber(
+    void *object
+  ) override {
+    return atof(extractCString((T *)object));
+  }
+
+  virtual const char *ToString(
+    void *object
+  ) override {
+    return extractCString((T *)object);
+  }
+
+  virtual MetaType *GetSelf() override;
+
+  virtual void WriteType(
+    lua_State *L,
+    void *object
+  ) override {
+    lua_pushstring(L, extractCString((T *)object));
+  }
+
+  virtual void ReadType(
+    lua_State *L,
+    int index,
+    void *object
+  ) override {
+
+  }
+
+  virtual MetaType *Copy() override {
+    return new MetaTypeString<T>{*this};
   }
 };
 
@@ -288,19 +394,54 @@ class MetaClassVoid: public MetaType {
 public:
   MetaClassVoid(const char *name): MetaType(name) { }
 
-  virtual size_t GetSizeOf() override {
+  virtual size_t SizeOfType() override {
     return 0;
   }
 
-  virtual size_t GetAlignOf() override {
+  virtual size_t AlignOfType() override {
     return 0;
   }
 
-  virtual void *CreateObject() override {
+  virtual void *CreateByType() override {
     return nullptr;
   }
 
-  virtual void DeleteObject(void *p) override { }
+  virtual void DeleteByType(void *p) override { }
+
+  virtual void *Unk1(void *p) override;
+
+  virtual void Unk2() override;
+
+  virtual void DynamicCast(
+    void *targetObject,
+    void *sourceObject,
+    MetaType &sourceType
+  ) override {
+
+  }
+
+  virtual bool Unk3() override;
+
+  virtual bool Unk4() override;
+
+  virtual double ToNumber(void *object) override;
+
+  virtual const char *ToString(void *object) override;
+
+  virtual MetaType *GetSelf() override;
+
+  virtual void WriteType(
+    lua_State *L,
+    void *object
+  ) override;
+
+  virtual void ReadType(
+    lua_State *L,
+    int index,
+    void *object
+  ) override;
+
+  virtual MetaType *Copy() override;
 };
 
 using PFN_RegisterClass = MetaClassVoid *(*)();
@@ -352,6 +493,14 @@ MetaClassVoid *GetMetaClassByType() {
   //return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();
   return nullptr;
 }
+
+// ----------------------------------------------------------------------------
+// [SECTION] MetaLua
+// ----------------------------------------------------------------------------
+
+void MetaLuaBindClass(
+  MetaType *T,
+  lua_State *L);
 
 // ----------------------------------------------------------------------------
 // [SECTION] Object
