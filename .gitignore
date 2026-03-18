@@ -5,6 +5,8 @@ dist/
 
 # Test
 test.*
+*.log
+*.bin
 
 # Build
 *.a
@@ -13,3 +15,4 @@ test.*
 *.vcxproj.user
 *.dll
 *.exe
+*.gch
