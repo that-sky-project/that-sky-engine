@@ -47,6 +47,126 @@ MetaType *GetMetaType() {
 }
 
 // ----------------------------------------------------------------------------
+// [SECTION] MetaClass
+// ----------------------------------------------------------------------------
+
+void MetaClass::DynamicCast(
+  void *targetObject,
+  void *sourceObject,
+  const MetaType &sourceType
+) const {
+
+}
+
+double MetaClass::ToNumber(void *) const {
+  return 0;
+}
+
+const char *MetaClass::ToString(void *) const {
+  return "";
+}
+
+const MetaType *MetaClass::GetSelf() const {
+  return this;
+}
+
+void MetaClass::WriteType(
+  lua_State *L,
+  void *object
+) const {
+  Payload *ppObject = (Payload *)object
+    , pObject = *ppObject
+    , result;
+
+ if (!pObject)
+    return lua_pushnil(L);
+
+  Object *pBase = (Object *)Upcast(pObject);
+  if (pBase)
+    result = GetMetaClassById(pBase->m_metaClassId)->Downcast(pBase);
+  else
+    result = pObject;
+
+  *(Payload *)lua_newuserdata(L, 8) = result;
+  lua_getglobal(L, m_name);
+  lua_setmetatable(L, -2);
+}
+
+void MetaClass::ReadType(
+  lua_State *L,
+  int index,
+  void *object
+) const {
+  Payload *ppObject = (Payload *)object
+    , pObject;
+  const char *err = nullptr;
+  const MetaClass *metaClass;
+  bool isDerived = false;
+  char buffer[1088];
+
+  if (!lua_type(L, index)) {
+    // LUA_TNIL, directly return nullptr.
+    *ppObject = nullptr;
+    return;
+  }
+
+  pObject = lua_touserdata(L, index);
+  if (!pObject || !lua_getmetatable(L, index)) {
+    // Not a userdata (objects created by MetaSystem) or no metatable.
+    err = lua_typename(L, lua_type(L, index));
+    goto Err;
+  }
+  lua_getfield(L, -1, "__metaclass");
+  metaClass = (const MetaClass *)lua_touserdata(L, -1);
+  lua_settop(L, -3);
+  if (!metaClass) {
+    // No MetaClass.
+    err = "<unknown userdata>";
+    goto Err;
+  }
+
+  if (metaClass != this) {
+    // Not the expected class.
+    // Set the error message to the type name of recieved class name.
+    err = metaClass->m_name;
+    if (m_topoOrder == -1)
+      // Not a valid topological order.
+      goto Err;
+
+    for (auto &it: m_baseTopoIdList) {
+      // Find parent class. The expected type must have a valid topological
+      // order, and the base class list of the actual type contains this order.
+      if (it == m_topoOrder) {
+        isDerived = true;
+        break;
+      }
+    }
+
+    if (!isDerived) {
+Err:
+      const char *msg = "!!!NULL!!!";
+      if (err)
+        msg = err;
+      snprintf(buffer, 1024, "Expected %s, but got %s.", m_name, msg);
+      lua_pushstring(L, buffer);
+      lua_error(L);
+
+      // lua_error never returns.
+      return;
+    }
+  }
+
+  DynamicCast(ppObject, pObject, *metaClass);
+}
+
+void MetaClass::SimpleCopy(
+  void *target
+) const {
+  *(MetaType *)target = *(MetaType *)this;
+  ((MetaClass *)target)->m_parent = m_parent;
+}
+
+// ----------------------------------------------------------------------------
 // [SECTION] Object
 // ----------------------------------------------------------------------------
 
@@ -58,3 +178,13 @@ META_REGISTER_CLASS(MetaClass, nullptr);
 // ----------------------------------------------------------------------------
 
 META_REGISTER_CLASS(MetaSystem, nullptr);
+
+// ----------------------------------------------------------------------------
+// [SECTION] Functions
+// ----------------------------------------------------------------------------
+
+const MetaClass *GetMetaClassById(
+  int globalId
+) {
+
+}

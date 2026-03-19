@@ -24,17 +24,20 @@ class MetaMemberVariable;
 class MetaType;
 class MetaClass;
 
+const MetaClass *GetMetaClassById(
+  int globalId);
+
 // ----------------------------------------------------------------------------
 // [SECTION] Object
 // ----------------------------------------------------------------------------
 
 class Object {
 public:
-  Object(unsigned int metaClassId): m_metaClassId(metaClassId) { }
+  Object(int metaClassId): m_metaClassId(metaClassId) { }
 
   ~Object() = default;
 
-  unsigned int m_metaClassId;
+  int m_metaClassId;
 };
 
 // ----------------------------------------------------------------------------
@@ -125,8 +128,10 @@ public:
   // Delete an created object of the type.
   virtual void DeleteByType(void *p) const = 0;
 
+  // Calls the constructor of the type. Only valid when the type is std::string.
   virtual void *ConstructByType(void *p) const = 0;
 
+  // Calls the destructor of the type. Only valid when the type is std::string.
   virtual void DestructByType(void *p) const = 0;
 
   // Dynamic cast an object "sourceObject" of type specified by "sourceType" to
@@ -137,8 +142,10 @@ public:
     const MetaType &sourceType
   ) const = 0;
 
+  // Return whether the type is a number type.
   virtual bool IsNumber() const = 0;
 
+  // Return whether the type is a string type.
   virtual bool IsString() const = 0;
 
   // Convert the type represented by the metaclass to a lua number (double).
@@ -152,6 +159,7 @@ public:
     void *object
   ) const = 0;
 
+  // Return "this" when the type is not a primitive type.
   virtual const MetaType *GetSelf() const = 0;
 
   // Write the type represented by the metaclass to lua_State.
@@ -290,14 +298,18 @@ public:
     delete (T *)p;
   }
 
+  // Construct type T in-place. In most cases this function does nothing.
   virtual void *ConstructByType(void *p) const override {
     return new (p) T;
   }
 
+  // Call the destructor function of type T.
   virtual void DestructByType(void *p) const override {
     ((T *)p)->~T();
   }
 
+  // Perform number type dynamic cast. Convert to lua_Number (double), then
+  // convert to type T.
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
@@ -314,17 +326,19 @@ public:
     return false;
   }
 
+  // Convert from type T to lua_Number.
   virtual lua_Number ToNumber(
     void *object
   ) const override {
     return (lua_Number)*(T *)object;
   }
 
+  // Convert from type T to string.
   virtual const char *ToString(
     void *object
   ) const override {
     static char buf[80];
-    snprintf(buf, 65, "%d", *(T *)object);
+    snprintf(buf, 65, "%g", ToNumber(object));
     return buf;
   }
 
@@ -443,7 +457,13 @@ public:
 
 using PFN_RegisterClass = MetaClass *(*)();
 
+// MetaClass object implementation.
+// NOTE: We can consider MetaClass as MetaTypePointer. All operations of
+// MetaClass is performed on the pointer to the objects.
 class MetaClass: public MetaType {
+protected:
+  using Payload = void *;
+
 public:
   MetaClass(
     const char *name,
@@ -451,7 +471,7 @@ public:
   )
     : MetaType(name)
     , m_parent(parent)
-    , m_globalId(0xFFFFFFFF)
+    , m_globalId(-1)
     , m_topoOrder(-1)
     , m_baseTopoIdList()
     , m_metaDataContainer(nullptr)
@@ -464,36 +484,31 @@ public:
     void *targetObject,
     void *sourceObject,
     const MetaType &sourceType
-  ) const override {
+  ) const override;
 
-  }
+  virtual double ToNumber(void *) const override;
 
-  virtual double ToNumber(void *) const override { return 0; }
+  virtual const char *ToString(void *) const override;
 
-  virtual const char *ToString(void *) const override { return ""; }
+  virtual const MetaType *GetSelf() const override;
 
-  virtual const MetaType *GetSelf() const override { return this; }
-
+  // Write an object to lua stack.
   virtual void WriteType(
     lua_State *L,
     void *object
-  ) const override {
+  ) const override;
 
-  }
-
+  // Read an object from lua stack.
   virtual void ReadType(
     lua_State *L,
     int index,
     void *object
-  ) const override {
+  ) const override;
 
-  }
-
+  // Copy the MetaType sub object to "target".
   virtual void SimpleCopy(
     void *target
-  ) const override {
-
-  }
+  ) const override;
 
   // Get whether the object is abstract.
   virtual bool IsAbstract() const = 0;
@@ -521,14 +536,14 @@ public:
 
   // Get the pointer of Object sub object from the sub class, i.e. static_cast
   // from `T *` to `Object *`.
-  virtual void *Upcast(Object **object) const = 0;
+  virtual void *Upcast(void *&object) const = 0;
 
   // Get the pointer to a subclass from an Object sub object, i.e. static_cast
   // from `Object *` to `T *`.
-  virtual void *Downcast(Object **object) const = 0;
+  virtual void *Downcast(Object *&object) const = 0;
 
   PFN_RegisterClass m_parent;
-  unsigned int m_globalId;
+  int m_globalId;
   int m_topoOrder;
   std::vector<int> m_baseTopoIdList;
   void *m_metaDataContainer;
@@ -576,9 +591,9 @@ public:
 
   virtual void DestructObject(void *) const override { }
 
-  virtual void *Upcast(Object **) const override { return nullptr; }
+  virtual void *Upcast(void *&) const override { return nullptr; }
 
-  virtual void *Downcast(Object **) const override { return nullptr; }
+  virtual void *Downcast(Object *&) const override { return nullptr; }
 };
 
 // A MetaClass representing "Object" types.
@@ -597,22 +612,25 @@ public:
   { }
 
   virtual size_t SizeOfType() const override {
-    return sizeof(void *);
+    return sizeof(Payload);
   }
 
   virtual size_t AlignOfType() const override {
-    return alignof(void *);
+    return alignof(Payload);
   }
 
   virtual void *CreateByType() const override {
-    return new void *{nullptr};
+    return new Payload{nullptr};
   }
 
   virtual void DeleteByType(void *p) const override {
-    delete (void **)p;
+    delete (Payload *)p;
   }
 
-  virtual void *ConstructByType(void *p) const override { return p; }
+  // Construct a nullptr on p, i.e. p = Payload * = void **.
+  virtual void *ConstructByType(void *p) const override {
+    return new (p) Payload{nullptr};
+  }
 
   virtual void DestructByType(void *p) const override { }
 
@@ -674,19 +692,23 @@ public:
   }
 
   virtual void *Upcast(
-    Object **object
+    void *&object
   ) const override {
-    if (!*object)
+    if (!object)
       return nullptr;
-    return (Object *)(*(T **)object);
+    
+    // Convert to `T *` then convert to `Object *`, in order to adjust the
+    // pointer.
+    return (Object *)(T *)object;
   }
 
   virtual void *Downcast(
-    Object **object
+    Object *&object
   ) const override {
-    if (!*object)
+    if (!object)
       return nullptr;
-    return (T *)*object;
+
+    return (T *)object;
   }
 };
 
