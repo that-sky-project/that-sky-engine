@@ -1,3 +1,4 @@
+#include "Assert.hpp"
 #include "Meta.hpp"
 
 // Register a type.
@@ -144,6 +145,7 @@ void MetaClass::ReadType(
 
     if (!isDerived) {
 Err:
+      // Error handler.
       const char *msg = "!!!NULL!!!";
       if (err)
         msg = err;
@@ -186,5 +188,42 @@ META_REGISTER_CLASS(MetaSystem, nullptr);
 const MetaClass *GetMetaClassById(
   int globalId
 ) {
+  return MetaClassImpl<Object>::Must_call_META_REGISTER_CLASS();
+}
 
+int MetaLuaEq(
+  lua_State *L
+) {
+  void **obj1 = (void **)lua_touserdata(L, -1)
+    , **obj2 = (void **)lua_touserdata(L, -2);
+  int result = 0;
+
+  if (obj1 && obj2) {
+    if (lua_type(L, -1) != LUA_TLIGHTUSERDATA && lua_type(L, -2) != LUA_TLIGHTUSERDATA)
+      result = *obj1 == *obj2;
+  }
+
+  lua_pushboolean(L, result);
+
+  return 1;
+}
+
+int MetaLuaIndex(
+  lua_State *L
+) {
+  lua_getmetatable(L, -2);
+  lua_pushvalue(L, -2);
+  lua_gettable(L, -2);
+  return 1;
+}
+
+int MetaLuaToString(
+  lua_State *L
+) {
+  MetaType *upval = (MetaType *)lua_touserdata(L, lua_upvalueindex(1));
+  skyAssert(upval);
+
+  lua_pushstring(L, upval->m_name);
+
+  return 1;
 }

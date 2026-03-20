@@ -12,6 +12,7 @@ extern "C" {
 }
 
 #include "Types.h"
+#include "Assert.hpp"
 
 // ----------------------------------------------------------------------------
 // [SECTION] Declarations
@@ -536,11 +537,11 @@ public:
 
   // Get the pointer of Object sub object from the sub class, i.e. static_cast
   // from `T *` to `Object *`.
-  virtual void *Upcast(void *&object) const = 0;
+  virtual void *Upcast(void *const &object) const = 0;
 
   // Get the pointer to a subclass from an Object sub object, i.e. static_cast
   // from `Object *` to `T *`.
-  virtual void *Downcast(Object *&object) const = 0;
+  virtual void *Downcast(Object *const &object) const = 0;
 
   PFN_RegisterClass m_parent;
   int m_globalId;
@@ -591,16 +592,16 @@ public:
 
   virtual void DestructObject(void *) const override { }
 
-  virtual void *Upcast(void *&) const override { return nullptr; }
+  virtual void *Upcast(void *const &) const override { return nullptr; }
 
-  virtual void *Downcast(Object *&) const override { return nullptr; }
+  virtual void *Downcast(Object *const &) const override { return nullptr; }
 };
 
 // A MetaClass representing "Object" types.
 template<typename T>
 class MetaClassImpl: public MetaClass {
 public:
-  static MetaClass *Must_call_META_REGISTER_CLASS() {
+  static MetaClassImpl<T> *Must_call_META_REGISTER_CLASS() {
     return nullptr;
   }
 
@@ -661,9 +662,10 @@ public:
   virtual void *NewObject() const override {
     if constexpr (!std::is_abstract_v<T>)
       return new T{Must_call_META_REGISTER_CLASS()->m_globalId};
-    else
-      // Tried to call new on abstract or non-default-constructible type.
+    else {
+      skyAssertMsg(false, "Tried to call new on abstract or non-default-constructible type.");
       return nullptr;
+    }
   }
 
   virtual void DeleteObject(
@@ -678,9 +680,10 @@ public:
   ) const override {
     if constexpr (!std::is_abstract_v<T>)
       new (object) T{Must_call_META_REGISTER_CLASS()->m_globalId};
-    else
-      // Tried to call placement new on abstract or non-default-constructible type.
+    else {
+      skyAssertMsg(false, "Tried to call placement new on abstract or non-default-constructible type.");
       return nullptr;
+    }
 
     return object;
   }
@@ -692,7 +695,7 @@ public:
   }
 
   virtual void *Upcast(
-    void *&object
+    void *const &object
   ) const override {
     if (!object)
       return nullptr;
@@ -703,7 +706,7 @@ public:
   }
 
   virtual void *Downcast(
-    Object *&object
+    Object *const &object
   ) const override {
     if (!object)
       return nullptr;
@@ -734,7 +737,13 @@ MetaClass *GetMetaClassByType() {
 // [SECTION] MetaLua
 // ----------------------------------------------------------------------------
 
-void MetaLuaBindClass(
+int MetaLuaEq(
+  lua_State *L);
+
+int MetaLuaIndex(
+  lua_State *L);
+
+int MetaLuaBindClass(
   MetaType *T,
   lua_State *L);
 
@@ -743,6 +752,7 @@ void MetaLuaBindClass(
 // ----------------------------------------------------------------------------
 
 class MetaSystem: public Object {
+public:
   void Initialize() {
 
   }
@@ -758,14 +768,14 @@ template<> MetaType *GetMetaTypeByType<T>();
 
 // Declare a class.
 #define META_DECLARE_CLASS(T) \
-template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+template<> MetaClassImpl<T> *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
 template<> MetaClass *GetMetaClassByType<T *>();
 
 // Register a class.
 #define META_REGISTER_CLASS(T, ...) \
 static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
-template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
-  return static_cast<MetaClassVoid *>(g_metaClass_##T.m_self);\
+template<> MetaClassImpl<T> *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
+  return static_cast<MetaClassImpl<T> *>(g_metaClass_##T.m_self);\
 }\
 template<> MetaClass *GetMetaClassByType<T *>() {\
   return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
@@ -792,6 +802,8 @@ META_DECLARE_TYPE(TgcString);
 
 META_DECLARE_CLASS(Object);
 META_DECLARE_CLASS(MetaClass);
+
+META_DECLARE_CLASS(MetaSystem);
 
 // #ifndef __META_HPP__
 #endif
