@@ -4,7 +4,7 @@
 // Register a type.
 #define META_REGISTER_TYPE(T)\
   template<>\
-  MetaType *GetMetaTypeByType<T>() {\
+  const MetaType *GetMetaTypeByType<T>() {\
     return g_metaType_##T.m_self;\
   }
 
@@ -22,9 +22,9 @@
 // [SECTION] MetaType
 // ----------------------------------------------------------------------------
 
-MetaTypeBool g_metaType_bool{"bool"};
+static MetaTypeBool g_metaType_bool{"bool"};
 template<>
-MetaType *GetMetaTypeByType<bool>() {
+const MetaType *GetMetaTypeByType<bool>() {
   return g_metaType_bool.m_self;
 }
 
@@ -42,9 +42,14 @@ META_REGISTER_TYPE_NUMBER(double);
 META_REGISTER_TYPE_STRING(cstring);
 META_REGISTER_TYPE_STRING(TgcString);
 
-MetaClassVoid g_metaType_void{"void"};
-MetaType *GetMetaType() {
-  return g_metaType_void.m_self;
+static MetaClassVoid g_metaType_void{"void"};
+
+const MetaType *GetMetaType() {
+  return (const MetaClassVoid *)g_metaType_void.m_self;
+}
+
+const MetaClass *GetMetaClass() {
+  return GetMetaType()->AsClass();
 }
 
 // ----------------------------------------------------------------------------
@@ -67,7 +72,7 @@ const char *MetaClass::ToString(void *) const {
   return "";
 }
 
-const MetaType *MetaClass::GetSelf() const {
+const MetaClass *MetaClass::AsClass() const {
   return this;
 }
 
@@ -181,6 +186,77 @@ META_REGISTER_CLASS(MetaClass, nullptr);
 
 META_REGISTER_CLASS(MetaSystem, nullptr);
 
+static MetaSystem *g_metaSystem = nullptr;
+
+void MetaSystem::m_RecursiveInit(
+  MetaClass *mc,
+  int *globalId,
+  int *topoId
+) {
+  if (mc->m_globalId != -1)
+    return;
+
+  if (mc->m_parent)
+    MetaSystem::m_RecursiveInit(mc->m_parent(), globalId, topoId);
+
+  skyAssert(*globalId < kMaxClasses);
+
+  mc->m_globalId = (*globalId)++;
+  mc->m_baseTopoIdList.clear();
+
+  if (mc->m_parent) {
+    MetaClass *superClass = mc->m_parent();
+  
+    if (superClass->m_topoOrder == -1) {
+      int id = *topoId;
+      superClass->m_topoOrder = id;
+      superClass->m_baseTopoIdList.push_back(id);
+      *topoId = id + 1;
+    }
+
+    if (superClass != mc) {
+      mc->m_baseTopoIdList.insert(
+        mc->m_baseTopoIdList.end(),
+        superClass->m_baseTopoIdList.begin(),
+        superClass->m_baseTopoIdList.end());
+    }
+  }
+
+  mc->m_metaDataContainer = new MetaDataContainer();
+}
+
+void MetaSystem::Initialize() {
+  skyAssertMsg(!g_metaSystem, "MetaSystem is a singleton and must be initialized only once.");
+  g_metaSystem = this;
+
+  m_data = new MetaSystemDataContainer();
+
+  for (auto it = MetaObject<MetaType>::m_List(); it; it = it->m_prev) {
+    char *name = new char[strlen(it->m_name) + 1];
+    strcpy(name, it->m_name);
+
+    MetaType *mt = it->Copy();
+    mt->m_name = name;
+    it->m_self = mt;
+
+    m_data->m_metaTypes[name] = mt;
+
+    if (!it->AsClass())
+      continue;
+
+    m_data->m_metaClasses[name] = (MetaClass *)mt;
+  }
+
+  int topoOrder = 0
+    , globalId = 0;
+  
+  for (auto &it: m_data->m_metaClasses) {
+    m_RecursiveInit(it.second, &globalId, &topoOrder);
+  }
+
+  m_metaClassId = MetaClassImpl<MetaSystem>::Must_call_META_REGISTER_CLASS()->m_globalId;
+}
+
 // ----------------------------------------------------------------------------
 // [SECTION] Functions
 // ----------------------------------------------------------------------------
@@ -189,41 +265,4 @@ const MetaClass *GetMetaClassById(
   int globalId
 ) {
   return MetaClassImpl<Object>::Must_call_META_REGISTER_CLASS();
-}
-
-int MetaLuaEq(
-  lua_State *L
-) {
-  void **obj1 = (void **)lua_touserdata(L, -1)
-    , **obj2 = (void **)lua_touserdata(L, -2);
-  int result = 0;
-
-  if (obj1 && obj2) {
-    if (lua_type(L, -1) != LUA_TLIGHTUSERDATA && lua_type(L, -2) != LUA_TLIGHTUSERDATA)
-      result = *obj1 == *obj2;
-  }
-
-  lua_pushboolean(L, result);
-
-  return 1;
-}
-
-int MetaLuaIndex(
-  lua_State *L
-) {
-  lua_getmetatable(L, -2);
-  lua_pushvalue(L, -2);
-  lua_gettable(L, -2);
-  return 1;
-}
-
-int MetaLuaToString(
-  lua_State *L
-) {
-  MetaType *upval = (MetaType *)lua_touserdata(L, lua_upvalueindex(1));
-  skyAssert(upval);
-
-  lua_pushstring(L, upval->m_name);
-
-  return 1;
 }

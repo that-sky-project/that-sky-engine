@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 extern "C" {
 #include "lua.h"
@@ -34,7 +35,7 @@ const MetaClass *GetMetaClassById(
 
 class Object {
 public:
-  Object(int metaClassId): m_metaClassId(metaClassId) { }
+  Object(int metaClassId = -1): m_metaClassId(metaClassId) { }
 
   ~Object() = default;
 
@@ -161,7 +162,7 @@ public:
   ) const = 0;
 
   // Return "this" when the type is not a primitive type.
-  virtual const MetaType *GetSelf() const = 0;
+  virtual const MetaClass *AsClass() const = 0;
 
   // Write the type represented by the metaclass to lua_State.
   virtual void WriteType(
@@ -254,7 +255,7 @@ public:
     return *(bool *)object ? "true" : "false";
   }
 
-  virtual const MetaType *GetSelf() const override {
+  virtual const MetaClass *AsClass() const override {
     return nullptr;
   }
 
@@ -343,7 +344,7 @@ public:
     return buf;
   }
 
-  virtual const MetaType *GetSelf() const override {
+  virtual const MetaClass *AsClass() const override {
     return nullptr;
   }
 
@@ -425,7 +426,7 @@ public:
     return MetaType::ExtractCString((T *)object);
   }
 
-  virtual const MetaType *GetSelf() const override {
+  virtual const MetaClass *AsClass() const override {
     return nullptr;
   }
 
@@ -456,6 +457,14 @@ public:
 // [SECTION] MetaClass
 // ----------------------------------------------------------------------------
 
+struct MetaDataContainer {
+  std::unordered_map<const char *, MetaMemberVariable *> m_variables;
+  std::unordered_map<const char *, MetaMemberFunction *> m_functions;
+  std::unordered_map<const char *, void *> unk_3;
+  std::unordered_map<const char *, void *> unk_4;
+  std::unordered_map<const char *, void *> unk_5;
+};
+
 using PFN_RegisterClass = MetaClass *(*)();
 
 // MetaClass object implementation.
@@ -466,6 +475,8 @@ protected:
   using Payload = void *;
 
 public:
+  static constexpr int kMaxClasses = 0xA00;
+
   MetaClass(
     const char *name,
     PFN_RegisterClass parent = nullptr
@@ -491,7 +502,7 @@ public:
 
   virtual const char *ToString(void *) const override;
 
-  virtual const MetaType *GetSelf() const override;
+  virtual const MetaClass *AsClass() const override;
 
   // Write an object to lua stack.
   virtual void WriteType(
@@ -547,7 +558,7 @@ public:
   int m_globalId;
   int m_topoOrder;
   std::vector<int> m_baseTopoIdList;
-  void *m_metaDataContainer;
+  MetaDataContainer *m_metaDataContainer;
   void *m_vtableCache;
 };
 
@@ -719,43 +730,59 @@ public:
 // [SECTION] Functions
 // ----------------------------------------------------------------------------
 
-MetaType *GetMetaType();
+// Get an implmentation of MetaType.
+const MetaType *GetMetaType();
+
+// Get an implmentation of GetMetaClass.
+const MetaClass *GetMetaClass();
+
+bool IsDerivedFrom(
+  const MetaClass *mc1,
+  const MetaClass *mc2);
 
 // Get MetaType from type name.
 template<typename T>
-MetaType *GetMetaTypeByType() {
+const MetaType *GetMetaTypeByType() {
   return nullptr;
 }
 
 // Get MetaClassImpl from class.
 template<typename Tp>
-MetaClass *GetMetaClassByType() {
+const MetaClass *GetMetaClassByType() {
   return nullptr;
 }
-
-// ----------------------------------------------------------------------------
-// [SECTION] MetaLua
-// ----------------------------------------------------------------------------
-
-int MetaLuaEq(
-  lua_State *L);
-
-int MetaLuaIndex(
-  lua_State *L);
-
-int MetaLuaBindClass(
-  MetaType *T,
-  lua_State *L);
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
 
-class MetaSystem: public Object {
-public:
-  void Initialize() {
+struct MetaSystemDataContainer {
+  std::unordered_map<const char *, MetaType *> m_metaTypes;
+  std::unordered_map<const char *, void *> unk_2;
+  std::unordered_map<const char *, void *> unk_3;
+  std::unordered_map<const char *, void *> unk_4;
+  std::unordered_map<const char *, MetaClass *> m_metaClasses;
+  std::unordered_map<const char *, void *> unk_6;
+  std::unordered_map<const char *, void *> unk_7;
+  std::unordered_map<const char *, void *> unk_8;
+};
 
-  }
+class MetaSystem: public Object {
+private:
+  static void m_RecursiveInit(
+    MetaClass *pMetaClass,
+    int *pIdCounter,
+    int *pTopologyCounter);
+
+public:
+  static constexpr int kMaxClasses = MetaClass::kMaxClasses;
+
+  MetaSystem(int metaClassId = -1): Object(metaClassId) { }
+
+  void Initialize();
+
+  MetaSystemDataContainer *m_data;
+  const MetaClass *m_classes[kMaxClasses];
 };
 
 // ----------------------------------------------------------------------------
@@ -764,12 +791,12 @@ public:
 
 // Declare a type.
 #define META_DECLARE_TYPE(T)\
-template<> MetaType *GetMetaTypeByType<T>();
+template<> const MetaType *GetMetaTypeByType<T>();
 
 // Declare a class.
 #define META_DECLARE_CLASS(T) \
 template<> MetaClassImpl<T> *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
-template<> MetaClass *GetMetaClassByType<T *>();
+template<> const MetaClass *GetMetaClassByType<T *>();
 
 // Register a class.
 #define META_REGISTER_CLASS(T, ...) \
@@ -777,7 +804,7 @@ static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
 template<> MetaClassImpl<T> *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
   return static_cast<MetaClassImpl<T> *>(g_metaClass_##T.m_self);\
 }\
-template<> MetaClass *GetMetaClassByType<T *>() {\
+template<> const MetaClass *GetMetaClassByType<T *>() {\
   return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
 }
 
