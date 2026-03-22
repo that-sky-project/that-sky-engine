@@ -26,9 +26,6 @@ class MetaMemberVariable;
 class MetaType;
 class MetaClass;
 
-const MetaClass *GetMetaClassById(
-  int globalId);
-
 // ----------------------------------------------------------------------------
 // [SECTION] Object
 // ----------------------------------------------------------------------------
@@ -313,52 +310,6 @@ public:
   void *m_vtableCache;
 };
 
-// A MetaClass representing "void" types.
-class MetaClassVoid: public MetaClass {
-public:
-  MetaClassVoid(const char *name): MetaClass(name) { }
-
-  virtual size_t SizeOfType() const override { return 0; }
-
-  virtual size_t AlignOfType() const override { return 0; }
-
-  virtual void *CreateByType() const override { return nullptr; }
-
-  virtual void DeleteByType(void *p) const override { }
-
-  virtual void *ConstructByType(void *p) const override { return p; }
-
-  virtual void DestructByType(void *p) const override { }
-
-  virtual bool IsNumber() const override { return false; }
-
-  virtual bool IsString() const override { return false; }
-
-  virtual MetaType *Copy() const override {
-    return new MetaClassVoid{*this};
-  }
-
-  virtual bool IsAbstract() const override { return true; }
-
-  virtual bool IsPolymorphic() const override { return false; }
-
-  virtual size_t SizeOfObject() const override { return 0; }
-
-  virtual size_t AlignOfObject() const override { return 0; }
-
-  virtual void *NewObject() const override { return nullptr; }
-
-  virtual void DeleteObject(void *) const override { }
-
-  virtual void *ConstructObject(void *) const override { return nullptr; }
-
-  virtual void DestructObject(void *) const override { }
-
-  virtual void *Upcast(void *const &) const override { return nullptr; }
-
-  virtual void *Downcast(Object *const &) const override { return nullptr; }
-};
-
 // A MetaClass representing "Object" types.
 template<typename T>
 class MetaClassImpl: public MetaClass {
@@ -487,6 +438,15 @@ const MetaType *GetMetaType();
 // Get an implmentation of GetMetaClass.
 const MetaClass *GetMetaClass();
 
+// Get a MetaClass from global id.
+const MetaClass *GetMetaClassById(
+  int globalId);
+
+// Get a MetaClass from name.
+const MetaClass *GetMetaClassByName(
+  const char *name,
+  bool constString = false);
+
 bool IsDerivedFrom(
   const MetaClass *mc1,
   const MetaClass *mc2);
@@ -507,12 +467,32 @@ const MetaClass *GetMetaClassByType() {
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
 
+struct MetaStrHash {
+  std::size_t operator()(
+    const char* s
+  ) const {
+    return std::hash<std::string>{}(s);
+  }
+};
+
+struct MetaStrLt {
+  bool operator()(
+    const char* a,
+    const char* b
+  ) const {
+    return strcmp(a, b) == 0;
+  }
+};
+
+template<typename Tv>
+using MetaStrHashMap = std::unordered_map<const char *, Tv, MetaStrHash, MetaStrLt>;
+
 struct MetaSystemDataContainer {
-  std::unordered_map<const char *, MetaType *> m_metaTypes;
+  MetaStrHashMap<MetaType *> m_metaTypes;
   std::unordered_map<const char *, void *> unk_2;
   std::unordered_map<const char *, void *> unk_3;
   std::unordered_map<const char *, void *> unk_4;
-  std::unordered_map<const char *, MetaClass *> m_metaClasses;
+  MetaStrHashMap<MetaClass *> m_metaClasses;
   std::unordered_map<const char *, void *> unk_6;
   std::unordered_map<const char *, void *> unk_7;
   std::unordered_map<const char *, void *> unk_8;

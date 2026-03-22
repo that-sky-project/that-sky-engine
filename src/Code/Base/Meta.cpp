@@ -291,6 +291,56 @@ META_REGISTER_TYPE_NUMBER(double);
 META_REGISTER_TYPE_STRING(cstring);
 META_REGISTER_TYPE_STRING(TgcString);
 
+// ----------------------------------------------------------------------------
+// [SECTION] MetaClassVoid
+// ----------------------------------------------------------------------------
+
+// A MetaClass representing "void" types.
+class MetaClassVoid: public MetaClass {
+public:
+  MetaClassVoid(const char *name): MetaClass(name) { }
+
+  virtual size_t SizeOfType() const override { return 0; }
+
+  virtual size_t AlignOfType() const override { return 0; }
+
+  virtual void *CreateByType() const override { return nullptr; }
+
+  virtual void DeleteByType(void *p) const override { }
+
+  virtual void *ConstructByType(void *p) const override { return p; }
+
+  virtual void DestructByType(void *p) const override { }
+
+  virtual bool IsNumber() const override { return false; }
+
+  virtual bool IsString() const override { return false; }
+
+  virtual MetaType *Copy() const override {
+    return new MetaClassVoid{*this};
+  }
+
+  virtual bool IsAbstract() const override { return true; }
+
+  virtual bool IsPolymorphic() const override { return false; }
+
+  virtual size_t SizeOfObject() const override { return 0; }
+
+  virtual size_t AlignOfObject() const override { return 0; }
+
+  virtual void *NewObject() const override { return nullptr; }
+
+  virtual void DeleteObject(void *) const override { }
+
+  virtual void *ConstructObject(void *) const override { return nullptr; }
+
+  virtual void DestructObject(void *) const override { }
+
+  virtual void *Upcast(void *const &) const override { return nullptr; }
+
+  virtual void *Downcast(Object *const &) const override { return nullptr; }
+};
+
 static MetaClassVoid g_metaType_void{"void"};
 
 const MetaType *GetMetaType() {
@@ -519,4 +569,21 @@ const MetaClass *GetMetaClassById(
   int globalId
 ) {
   return g_metaSystem->m_classes[globalId];
+}
+
+//const MetaClass *
+
+const MetaClass *GetMetaClassByName(
+  const char *name,
+  bool constString
+) {
+  if (constString)
+    ;
+
+  auto &classes = g_metaSystem->m_data->m_metaClasses;
+  auto it = classes.find(name);
+  if (it == classes.end())
+    return nullptr;
+
+  return it->second;
 }
