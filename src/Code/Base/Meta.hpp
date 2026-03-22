@@ -612,7 +612,7 @@ public:
 template<typename T>
 class MetaClassImpl: public MetaClass {
 public:
-  static MetaClassImpl<T> *Must_call_META_REGISTER_CLASS() {
+  static MetaClass *Must_call_META_REGISTER_CLASS() {
     return nullptr;
   }
 
@@ -795,13 +795,13 @@ template<> const MetaType *GetMetaTypeByType<T>();
 
 // Declare a class.
 #define META_DECLARE_CLASS(T) \
-template<> MetaClassImpl<T> *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
 template<> const MetaClass *GetMetaClassByType<T *>();
 
 // Register a class.
 #define META_REGISTER_CLASS(T, ...) \
 static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
-template<> MetaClassImpl<T> *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
+template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
   return static_cast<MetaClassImpl<T> *>(g_metaClass_##T.m_self);\
 }\
 template<> const MetaClass *GetMetaClassByType<T *>() {\

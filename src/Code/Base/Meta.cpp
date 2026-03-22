@@ -237,7 +237,7 @@ void MetaSystem::Initialize() {
 
     MetaType *mt = it->Copy();
     mt->m_name = name;
-    it->m_self = mt;
+    mt->m_self = it->m_self = mt;
 
     m_data->m_metaTypes[name] = mt;
 
@@ -247,11 +247,16 @@ void MetaSystem::Initialize() {
     m_data->m_metaClasses[name] = (MetaClass *)mt;
   }
 
+  for (int i = 0; i < kMaxClasses; i++) {
+    m_classes[i] = GetMetaType()->AsClass();
+  }
+
   int topoOrder = 0
     , globalId = 0;
   
   for (auto &it: m_data->m_metaClasses) {
     m_RecursiveInit(it.second, &globalId, &topoOrder);
+    m_classes[it.second->m_globalId] = it.second;
   }
 
   m_metaClassId = MetaClassImpl<MetaSystem>::Must_call_META_REGISTER_CLASS()->m_globalId;
@@ -264,5 +269,5 @@ void MetaSystem::Initialize() {
 const MetaClass *GetMetaClassById(
   int globalId
 ) {
-  return MetaClassImpl<Object>::Must_call_META_REGISTER_CLASS();
+  return g_metaSystem->m_classes[globalId];
 }
