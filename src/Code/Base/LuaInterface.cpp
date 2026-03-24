@@ -98,7 +98,7 @@ META_REGISTER_CLASS(Heap);
 class Heap: public Object {
 public:
   Heap() {
-    m_metaClassId = MetaClassImpl<Heap>::Must_call_META_REGISTER_CLASS()->m_globalId;
+    m_metaClassId = MetaClassId(Heap);
   }
 
   void *Allocate(

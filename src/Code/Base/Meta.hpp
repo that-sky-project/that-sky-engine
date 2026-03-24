@@ -16,6 +16,31 @@ extern "C" {
 #include "Assert.hpp"
 
 // ----------------------------------------------------------------------------
+// [SECTION] Macros
+// ----------------------------------------------------------------------------
+
+// Declare a type.
+#define META_DECLARE_TYPE(T)\
+template<> const MetaType *GetMetaTypeByType<T>();
+
+// Declare a class.
+#define META_DECLARE_CLASS(T) \
+template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+template<> const MetaClass *GetMetaClassByType<T *>();
+
+// Register a class.
+#define META_REGISTER_CLASS(T, ...) \
+static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
+template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
+  return static_cast<MetaClassImpl<T> *>(g_metaClass_##T.m_self);\
+}\
+template<> const MetaClass *GetMetaClassByType<T *>() {\
+  return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+}
+
+#define MetaClassId(T) MetaClassImpl<T>::Must_call_META_REGISTER_CLASS()->m_globalId
+
+// ----------------------------------------------------------------------------
 // [SECTION] Declarations
 // ----------------------------------------------------------------------------
 
@@ -25,18 +50,8 @@ class MetaMemberFunction;
 class MetaMemberVariable;
 class MetaType;
 class MetaClass;
-
-// ----------------------------------------------------------------------------
-// [SECTION] Object
-// ----------------------------------------------------------------------------
-
-class Object {
-public:
-  Object();
-  ~Object() = default;
-
-  int m_metaClassId;
-};
+class MetaSystem;
+class Object;
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaObject
@@ -480,6 +495,30 @@ const MetaClass *GetMetaClassByType() {
   return nullptr;
 }
 
+template<typename T>
+static inline int GetMetaClassIdByType() {
+  return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS()->m_globalId;
+}
+
+// ----------------------------------------------------------------------------
+// [SECTION] Object
+// ----------------------------------------------------------------------------
+
+META_DECLARE_CLASS(Object);
+
+class Object {
+public:
+  Object() {
+    m_metaClassId = MetaClassId(Object);
+  }
+
+  Object(int metaClassId): m_metaClassId(metaClassId) { }
+
+  ~Object() = default;
+
+  int m_metaClassId;
+};
+
 // ----------------------------------------------------------------------------
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
@@ -515,6 +554,8 @@ struct MetaSystemDataContainer {
   std::unordered_map<const char *, void *> unk_8;
 };
 
+META_DECLARE_CLASS(MetaSystem);
+
 class MetaSystem: public Object {
 private:
   static void m_RecursiveInit(
@@ -525,36 +566,15 @@ private:
 public:
   static constexpr int kMaxClasses = MetaClass::kMaxClasses;
 
-  MetaSystem();
+  MetaSystem()
+    : Object(MetaClassId(MetaSystem))
+  { }
 
   void Initialize();
 
   MetaSystemDataContainer *m_data;
   const MetaClass *m_classes[kMaxClasses];
 };
-
-// ----------------------------------------------------------------------------
-// [SECTION] Macros
-// ----------------------------------------------------------------------------
-
-// Declare a type.
-#define META_DECLARE_TYPE(T)\
-template<> const MetaType *GetMetaTypeByType<T>();
-
-// Declare a class.
-#define META_DECLARE_CLASS(T) \
-template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
-template<> const MetaClass *GetMetaClassByType<T *>();
-
-// Register a class.
-#define META_REGISTER_CLASS(T, ...) \
-static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
-template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
-  return static_cast<MetaClassImpl<T> *>(g_metaClass_##T.m_self);\
-}\
-template<> const MetaClass *GetMetaClassByType<T *>() {\
-  return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
-}
 
 using cstring = const char *;
 using TgcString = std::string;
@@ -575,10 +595,7 @@ META_DECLARE_TYPE(double);
 META_DECLARE_TYPE(cstring);
 META_DECLARE_TYPE(TgcString);
 
-META_DECLARE_CLASS(Object);
 META_DECLARE_CLASS(MetaClass);
-
-META_DECLARE_CLASS(MetaSystem);
 
 // #ifndef __META_HPP__
 #endif

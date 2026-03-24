@@ -530,10 +530,6 @@ void MetaClass::SimpleCopy(
 // [SECTION] Object
 // ----------------------------------------------------------------------------
 
-Object::Object() {
-  m_metaClassId = MetaClassImpl<Object>::Must_call_META_REGISTER_CLASS()->m_globalId;
-}
-
 META_REGISTER_CLASS(Object, nullptr);
 META_REGISTER_CLASS(MetaClass, nullptr);
 
@@ -544,10 +540,6 @@ META_REGISTER_CLASS(MetaClass, nullptr);
 META_REGISTER_CLASS(MetaSystem, nullptr);
 
 static MetaSystem *g_metaSystem = nullptr;
-
-MetaSystem::MetaSystem() {
-  m_metaClassId = MetaClassImpl<MetaSystem>::Must_call_META_REGISTER_CLASS()->m_globalId;
-}
 
 void MetaSystem::m_RecursiveInit(
   MetaClass *mc,
