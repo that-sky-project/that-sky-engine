@@ -32,8 +32,7 @@ class MetaClass;
 
 class Object {
 public:
-  Object(int metaClassId = -1): m_metaClassId(metaClassId) { }
-
+  Object();
   ~Object() = default;
 
   int m_metaClassId;
@@ -57,6 +56,14 @@ public:
     : m_name(name)
     , m_fields(nullptr)
     , m_prev(nullptr)
+  { }
+
+  MetaObject(
+    const MetaObject &src
+  )
+    : m_name(src.m_name)
+    , m_fields(src.m_fields)
+    , m_prev(src.m_prev)
   { }
 
   const char *m_name;
@@ -113,6 +120,14 @@ public:
     MetaObject<MetaType>::m_List() = this;
   }
 
+  MetaType(
+    const MetaType &src
+  )
+    : MetaObject<MetaType>(src)
+    , unk_1(src.unk_1)
+    , m_self(src.m_self)
+  { }
+
   virtual ~MetaType() = default;
 
   // Get the size of the type.
@@ -138,7 +153,7 @@ public:
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
-    const MetaType &sourceType
+    const MetaType *sourceType
   ) const = 0;
 
   // Return whether the type is a number type.
@@ -180,8 +195,10 @@ public:
   virtual void SimpleCopy(
     void *target
   ) const {
-    *(MetaType *)target = *(MetaType *)this;
+    memcpy(target, this, sizeof(MetaType));
   }
+
+  MetaType &operator=(const MetaType &) = default;
 
   void *unk_1;
   MetaType *m_self;
@@ -243,7 +260,7 @@ public:
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
-    const MetaType &sourceType
+    const MetaType *sourceType
   ) const override;
 
   virtual double ToNumber(void *) const override;
@@ -374,7 +391,7 @@ public:
 
   virtual void *NewObject() const override {
     if constexpr (!std::is_abstract_v<T>)
-      return new T{Must_call_META_REGISTER_CLASS()->m_globalId};
+      return new T;
     else {
       skyAssertMsg(false, "Tried to call new on abstract or non-default-constructible type.");
       return nullptr;
@@ -392,7 +409,7 @@ public:
     void *object
   ) const override {
     if constexpr (!std::is_abstract_v<T>)
-      new (object) T{Must_call_META_REGISTER_CLASS()->m_globalId};
+      new (object) T;
     else {
       skyAssertMsg(false, "Tried to call placement new on abstract or non-default-constructible type.");
       return nullptr;
@@ -508,7 +525,7 @@ private:
 public:
   static constexpr int kMaxClasses = MetaClass::kMaxClasses;
 
-  MetaSystem(int metaClassId = -1): Object(metaClassId) { }
+  MetaSystem();
 
   void Initialize();
 

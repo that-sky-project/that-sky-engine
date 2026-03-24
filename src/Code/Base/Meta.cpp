@@ -51,9 +51,9 @@ public:
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
-    const MetaType &sourceType
+    const MetaType *sourceType
   ) const override {
-    double num = sourceType.ToNumber(sourceObject);
+    double num = sourceType->ToNumber(sourceObject);
     *(bool *)targetObject = !!num;
   }
 
@@ -133,9 +133,9 @@ public:
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
-    const MetaType &sourceType
+    const MetaType *sourceType
   ) const override {
-    *(T *)targetObject = (T)sourceType.ToNumber(sourceObject);
+    *(T *)targetObject = (T)sourceType->ToNumber(sourceObject);
   }
 
   virtual bool IsNumber() const override {
@@ -218,9 +218,9 @@ public:
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
-    const MetaType &sourceType
+    const MetaType *sourceType
   ) const override {
-    const char *s = sourceType.ToString(sourceObject);
+    const char *s = sourceType->ToString(sourceObject);
     *(T *)targetObject = s;
   }
 
@@ -358,9 +358,63 @@ const MetaClass *GetMetaClass() {
 void MetaClass::DynamicCast(
   void *targetObject,
   void *sourceObject,
-  const MetaType &sourceType
+  const MetaType *sourceType
 ) const {
+  Payload *ppObject = (Payload *)sourceObject
+    , *ppResult = (Payload *)targetObject;
+  const MetaClass *pSrcClass;
 
+  if (this == sourceType) {
+    *ppResult = *ppObject;
+    return;
+  }
+  
+  pSrcClass = sourceType->AsClass();
+  if (!pSrcClass) {
+    // The source object is not a class.
+    *ppResult = nullptr;
+    return;
+  }
+
+  Object *pObject = (Object *)pSrcClass->Upcast(*ppObject);
+  if (!pObject) {
+    // The source object is void.
+    *ppResult = nullptr;
+    return;
+  }
+
+  // Get the actual type of the source object.
+  //
+  // This function allows you to cast anything in the same inheritance chain like
+  // to their base class, even if there's virtual function added in the derived
+  // class. But the function don't changed the metaclass id carried by the original
+  // object.
+  //
+  // So we can, and we need to extract the metaclass id to get the correct address
+  // of the object.
+  const MetaClass *pObjectClass = GetMetaClassById(pObject->m_metaClassId);
+  if (pObjectClass->AsClass() == this) {
+    // The actual type of the source object is the current type.
+    // Downcast to adjust pointer.
+    *ppResult = Downcast(pObject);
+    return;
+  }
+
+  if (m_topoOrder == -1) {
+    // Not a base class of any class.
+    *ppResult = nullptr;
+    return;
+  }
+
+  for (auto topoId: pObjectClass->m_baseTopoIdList) {
+    if (m_topoOrder == topoId) {
+      // The source object is a subclass of target object.
+      *ppResult = Downcast(pObject);
+      return;
+    }
+  }
+
+  *ppResult = nullptr;
 }
 
 double MetaClass::ToNumber(void *) const {
@@ -392,7 +446,7 @@ void MetaClass::WriteType(
   else
     result = pObject;
 
-  *(Payload *)lua_newuserdata(L, 8) = result;
+  *(Payload *)lua_newuserdata(L, SizeOfType()) = result;
   lua_getglobal(L, m_name);
   lua_setmetatable(L, -2);
 }
@@ -462,19 +516,23 @@ Err:
     }
   }
 
-  DynamicCast(ppObject, pObject, *metaClass);
+  DynamicCast(ppObject, pObject, metaClass);
 }
 
 void MetaClass::SimpleCopy(
   void *target
 ) const {
-  *(MetaType *)target = *(MetaType *)this;
+  MetaType::SimpleCopy(target);
   ((MetaClass *)target)->m_parent = m_parent;
 }
 
 // ----------------------------------------------------------------------------
 // [SECTION] Object
 // ----------------------------------------------------------------------------
+
+Object::Object() {
+  m_metaClassId = MetaClassImpl<Object>::Must_call_META_REGISTER_CLASS()->m_globalId;
+}
 
 META_REGISTER_CLASS(Object, nullptr);
 META_REGISTER_CLASS(MetaClass, nullptr);
@@ -486,6 +544,10 @@ META_REGISTER_CLASS(MetaClass, nullptr);
 META_REGISTER_CLASS(MetaSystem, nullptr);
 
 static MetaSystem *g_metaSystem = nullptr;
+
+MetaSystem::MetaSystem() {
+  m_metaClassId = MetaClassImpl<MetaSystem>::Must_call_META_REGISTER_CLASS()->m_globalId;
+}
 
 void MetaSystem::m_RecursiveInit(
   MetaClass *mc,
