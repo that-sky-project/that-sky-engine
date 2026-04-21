@@ -545,9 +545,9 @@ using MetaStrHashMap = std::unordered_map<const char *, Tv, MetaStrHash, MetaStr
 
 struct MetaSystemDataContainer {
   MetaStrHashMap<MetaType *> m_metaTypes;
-  std::unordered_map<const char *, void *> unk_2;
-  std::unordered_map<const char *, void *> unk_3;
-  std::unordered_map<const char *, void *> unk_4;
+  MetaStrHashMap<void *> m_metaConstants;
+  MetaStrHashMap<void *> m_metaVariables;
+  MetaStrHashMap<void *> m_metaFunctions;
   MetaStrHashMap<MetaClass *> m_metaClasses;
   std::unordered_map<const char *, void *> unk_6;
   std::unordered_map<const char *, void *> unk_7;
