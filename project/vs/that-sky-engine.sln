@@ -3,24 +3,32 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "that-sky-engine", "that-sky-engine\that-sky-engine.vcxproj", "{36746F61-C86E-44E6-8DE9-6484407AD6B1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{846868FC-4C2D-4959-B8FA-B55456F50394} = {846868FC-4C2D-4959-B8FA-B55456F50394}
+		{CFE23793-7429-4E10-8E7B-1865CF2E5DE5} = {CFE23793-7429-4E10-8E7B-1865CF2E5DE5}
+	EndProjectSection
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "lua\lua.vcxproj", "{846868FC-4C2D-4959-B8FA-B55456F50394}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "that-sky-engine", "that-sky-engine\that-sky-engine.vcxproj", "{36746F61-C86E-44E6-8DE9-6484407AD6B1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dlmalloc", "dlmalloc\dlmalloc.vcxproj", "{CFE23793-7429-4E10-8E7B-1865CF2E5DE5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Main|x64 = Main|x64
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{846868FC-4C2D-4959-B8FA-B55456F50394}.Main|x64.ActiveCfg = Main|x64
-		{846868FC-4C2D-4959-B8FA-B55456F50394}.Main|x64.Build.0 = Main|x64
-		{36746F61-C86E-44E6-8DE9-6484407AD6B1}.Main|x64.ActiveCfg = Main|x64
-		{36746F61-C86E-44E6-8DE9-6484407AD6B1}.Main|x64.Build.0 = Main|x64
+		{36746F61-C86E-44E6-8DE9-6484407AD6B1}.Release|x64.ActiveCfg = Release|x64
+		{36746F61-C86E-44E6-8DE9-6484407AD6B1}.Release|x64.Build.0 = Release|x64
+		{846868FC-4C2D-4959-B8FA-B55456F50394}.Release|x64.ActiveCfg = Release|x64
+		{846868FC-4C2D-4959-B8FA-B55456F50394}.Release|x64.Build.0 = Release|x64
+		{CFE23793-7429-4E10-8E7B-1865CF2E5DE5}.Release|x64.ActiveCfg = Release|x64
+		{CFE23793-7429-4E10-8E7B-1865CF2E5DE5}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {01D94A6D-81DB-427E-BA4F-F0503C45722E}
+		SolutionGuid = {BD1502CC-941D-4D36-B0CB-BE220983D0E1}
 	EndGlobalSection
 EndGlobal
