@@ -53,6 +53,26 @@ class MetaClass;
 class MetaSystem;
 class Object;
 
+struct MetaStrHash {
+  std::size_t operator()(
+    const char* s
+  ) const {
+    return std::hash<std::string>{}(s);
+  }
+};
+
+struct MetaStrLt {
+  bool operator()(
+    const char* a,
+    const char* b
+  ) const {
+    return strcmp(a, b) == 0;
+  }
+};
+
+template<typename Tv>
+using MetaStrHashMap = std::unordered_map<const char *, Tv, MetaStrHash, MetaStrLt>;
+
 // ----------------------------------------------------------------------------
 // [SECTION] MetaObject
 // ----------------------------------------------------------------------------
@@ -238,8 +258,8 @@ protected:
 // ----------------------------------------------------------------------------
 
 struct MetaDataContainer {
-  std::unordered_map<const char *, MetaMemberVariable *> m_variables;
-  std::unordered_map<const char *, MetaMemberFunction *> m_functions;
+  MetaStrHashMap<MetaMemberVariable *> m_variables;
+  MetaStrHashMap<MetaMemberFunction *> m_functions;
   std::unordered_map<const char *, void *> unk_3;
   std::unordered_map<const char *, void *> unk_4;
   std::unordered_map<const char *, void *> unk_5;
@@ -522,26 +542,6 @@ public:
 // ----------------------------------------------------------------------------
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
-
-struct MetaStrHash {
-  std::size_t operator()(
-    const char* s
-  ) const {
-    return std::hash<std::string>{}(s);
-  }
-};
-
-struct MetaStrLt {
-  bool operator()(
-    const char* a,
-    const char* b
-  ) const {
-    return strcmp(a, b) == 0;
-  }
-};
-
-template<typename Tv>
-using MetaStrHashMap = std::unordered_map<const char *, Tv, MetaStrHash, MetaStrLt>;
 
 struct MetaSystemDataContainer {
   MetaStrHashMap<MetaType *> m_metaTypes;
