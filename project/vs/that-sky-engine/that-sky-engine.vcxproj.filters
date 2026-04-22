@@ -1,2 +1,33 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" />
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Code">
+      <UniqueIdentifier>{58831149-dae8-4b97-ad82-0a7118ba2d24}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Code\Base">
+      <UniqueIdentifier>{6eb3d62a-3ff3-4206-bdfd-6233e2759086}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\src\Code\Base\Assert.cpp">
+      <Filter>Code\Base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\Code\Base\LuaInterface.cpp">
+      <Filter>Code\Base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\Code\Base\Meta.cpp">
+      <Filter>Code\Base</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\src\Code\Base\Assert.hpp">
+      <Filter>Code\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Base\LuaInterface.hpp">
+      <Filter>Code\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Base\Types.h">
+      <Filter>Code\Base</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
