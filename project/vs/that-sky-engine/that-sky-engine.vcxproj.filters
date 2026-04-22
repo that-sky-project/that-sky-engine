@@ -18,6 +18,9 @@
     <ClCompile Include="..\..\..\src\Code\Base\Meta.cpp">
       <Filter>Code\Base</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\src\Code\Base\StlAllocator.cpp">
+      <Filter>Code\Base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\Code\Base\Assert.hpp">
@@ -27,6 +30,9 @@
       <Filter>Code\Base</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\Code\Base\Types.h">
+      <Filter>Code\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Base\StlAllocator.hpp">
       <Filter>Code\Base</Filter>
     </ClInclude>
   </ItemGroup>

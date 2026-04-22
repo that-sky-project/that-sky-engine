@@ -1,3 +1,4 @@
+#include "StlAllocator.hpp"
 #include "Assert.hpp"
 #include "Meta.hpp"
 
@@ -178,7 +179,7 @@ public:
     int index,
     void *object
   ) const override {
-    *(T *)object = luaL_checknumber(L, index);
+    *(T *)object = (T)luaL_checknumber(L, index);
   }
 
   virtual MetaType *Copy() const override {
@@ -277,19 +278,19 @@ const MetaType *GetMetaTypeByType<bool>() {
   return g_metaType_bool.m_self;
 }
 
-META_REGISTER_TYPE_NUMBER(uint8_t);
-META_REGISTER_TYPE_NUMBER(int8_t);
-META_REGISTER_TYPE_NUMBER(uint16_t);
-META_REGISTER_TYPE_NUMBER(int16_t);
-META_REGISTER_TYPE_NUMBER(uint32_t);
-META_REGISTER_TYPE_NUMBER(int32_t);
-META_REGISTER_TYPE_NUMBER(uint64_t);
-META_REGISTER_TYPE_NUMBER(int64_t);
-META_REGISTER_TYPE_NUMBER(float);
-META_REGISTER_TYPE_NUMBER(double);
+META_REGISTER_TYPE_NUMBER(uint8_t)
+META_REGISTER_TYPE_NUMBER(int8_t)
+META_REGISTER_TYPE_NUMBER(uint16_t)
+META_REGISTER_TYPE_NUMBER(int16_t)
+META_REGISTER_TYPE_NUMBER(uint32_t)
+META_REGISTER_TYPE_NUMBER(int32_t)
+META_REGISTER_TYPE_NUMBER(uint64_t)
+META_REGISTER_TYPE_NUMBER(int64_t)
+META_REGISTER_TYPE_NUMBER(float)
+META_REGISTER_TYPE_NUMBER(double)
 
-META_REGISTER_TYPE_STRING(cstring);
-META_REGISTER_TYPE_STRING(TgcString);
+META_REGISTER_TYPE_STRING(cstring)
+META_REGISTER_TYPE_STRING(TgcString)
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaClassVoid
@@ -530,14 +531,14 @@ void MetaClass::SimpleCopy(
 // [SECTION] Object
 // ----------------------------------------------------------------------------
 
-META_REGISTER_CLASS(Object, nullptr);
-META_REGISTER_CLASS(MetaClass, nullptr);
+META_REGISTER_CLASS(Object, nullptr)
+META_REGISTER_CLASS(MetaClass, nullptr)
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
 
-META_REGISTER_CLASS(MetaSystem, nullptr);
+META_REGISTER_CLASS(MetaSystem, nullptr)
 
 static MetaSystem *g_metaSystem = nullptr;
 
@@ -552,7 +553,7 @@ void MetaSystem::m_RecursiveInit(
   if (mc->m_parent)
     MetaSystem::m_RecursiveInit(mc->m_parent(), globalId, topoId);
 
-  skyAssert(*globalId < kMaxClasses);
+  SkyAssert(*globalId < kMaxClasses);
 
   mc->m_globalId = (*globalId)++;
   mc->m_baseTopoIdList.clear();
@@ -579,7 +580,7 @@ void MetaSystem::m_RecursiveInit(
 }
 
 void MetaSystem::Initialize() {
-  skyAssertMsg(!g_metaSystem, "MetaSystem is a singleton and must be initialized only once.");
+  SkyAssertMsg(!g_metaSystem, "MetaSystem is a singleton and must be initialized only once.");
   g_metaSystem = this;
 
   m_data = new MetaSystemDataContainer();
@@ -625,14 +626,11 @@ const MetaClass *GetMetaClassById(
   return g_metaSystem->m_classes[globalId];
 }
 
-//const MetaClass *
-
 const MetaClass *GetMetaClassByName(
   const char *name,
   bool constString
 ) {
-  if (constString)
-    ;
+  if (constString) { }
 
   auto &classes = g_metaSystem->m_data->m_metaClasses;
   auto it = classes.find(name);

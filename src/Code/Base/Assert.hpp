@@ -19,11 +19,11 @@ public:
     ...);
 };
 
-#define skyAssert(expr) (void)(\
+#define SkyAssert(expr) (void)(\
   (!!(expr)) || (Private::AssertImpl(#expr, __FILE__, __LINE__), __debugbreak(), 0)\
 )
 
-#define skyAssertMsg(expr, msg, ...) (void)(\
+#define SkyAssertMsg(expr, msg, ...) (void)(\
   (!!(expr))\
   || (Private::AssertMsgImpl(#expr, __FILE__, __LINE__, msg, ## __VA_ARGS__), __debugbreak(), 0)\
 )

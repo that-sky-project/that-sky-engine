@@ -35,7 +35,7 @@ int MetaLuaToString(
 ) {
   // Access the userdata upvalue bound by MetaLuaBindClass.
   MetaClass *upval = (MetaClass *)lua_touserdata(L, lua_upvalueindex(1));
-  skyAssert(upval);
+  SkyAssert(upval);
 
   lua_pushstring(L, upval->m_name);
 
@@ -52,7 +52,7 @@ int MetaLuaCast(
 
   // Upvalue points to current MetaClass, i.e. the type to be casted to.
   upval = (const MetaClass *)lua_touserdata(L, lua_upvalueindex(1));
-  skyAssert(upval);
+  SkyAssert(upval);
 
   // Read an object from the stack as an Object.
   mc = MetaClassImpl<Object>::Must_call_META_REGISTER_CLASS();
@@ -124,7 +124,7 @@ int MetaLuaNewImpl(
   Heap **ppHeapObject, *pHeapObject;
 
   upval = (const MetaClass *)lua_touserdata(L, lua_upvalueindex(1));
-  skyAssert(upval);
+  SkyAssert(upval);
 
   metaClassHeap = MetaClassImpl<Heap>::Must_call_META_REGISTER_CLASS();
   ppHeapObject = (Heap **)metaClassHeap->ConstructByType(&pHeapObject);
@@ -161,7 +161,7 @@ int MetaLuaDeleteImpl(
   Heap **ppHeapObject, *pHeapObject;
 
   upval = (const MetaClass *)lua_touserdata(L, lua_upvalueindex(1));
-  skyAssert(upval);
+  SkyAssert(upval);
 
   ppObject = (Object **)upval->ConstructByType(&t);
   upval->ReadType(L, 1, ppObject);

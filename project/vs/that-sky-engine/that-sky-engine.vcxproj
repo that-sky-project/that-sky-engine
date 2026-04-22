@@ -61,10 +61,12 @@
     <ClCompile Include="..\..\..\src\Code\Base\Assert.cpp" />
     <ClCompile Include="..\..\..\src\Code\Base\LuaInterface.cpp" />
     <ClCompile Include="..\..\..\src\Code\Base\Meta.cpp" />
+    <ClCompile Include="..\..\..\src\Code\Base\StlAllocator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\Code\Base\Assert.hpp" />
     <ClInclude Include="..\..\..\src\Code\Base\LuaInterface.hpp" />
+    <ClInclude Include="..\..\..\src\Code\Base\StlAllocator.hpp" />
     <ClInclude Include="..\..\..\src\Code\Base\Types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

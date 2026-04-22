@@ -12,6 +12,7 @@ extern "C" {
 #include "lauxlib.h"
 }
 
+#include "StlAllocator.hpp"
 #include "Types.h"
 #include "Assert.hpp"
 
@@ -445,7 +446,7 @@ public:
     if constexpr (!std::is_abstract_v<T>)
       return new T;
     else {
-      skyAssertMsg(false, "Tried to call new on abstract or non-default-constructible type.");
+      SkyAssertMsg(false, "Tried to call new on abstract or non-default-constructible type.");
       return nullptr;
     }
   }
@@ -463,7 +464,7 @@ public:
     if constexpr (!std::is_abstract_v<T>)
       new (object) T;
     else {
-      skyAssertMsg(false, "Tried to call placement new on abstract or non-default-constructible type.");
+      SkyAssertMsg(false, "Tried to call placement new on abstract or non-default-constructible type.");
       return nullptr;
     }
 
@@ -541,7 +542,7 @@ static inline int GetMetaClassIdByType() {
 // [SECTION] Object
 // ----------------------------------------------------------------------------
 
-META_DECLARE_CLASS(Object);
+META_DECLARE_CLASS(Object)
 
 class Object {
 public:
@@ -571,7 +572,7 @@ struct MetaSystemDataContainer {
   std::unordered_map<const char *, void *> unk_8;
 };
 
-META_DECLARE_CLASS(MetaSystem);
+META_DECLARE_CLASS(MetaSystem)
 
 class MetaSystem: public Object {
 private:
@@ -585,6 +586,8 @@ public:
 
   MetaSystem()
     : Object(MetaClassId(MetaSystem))
+    , m_data(nullptr)
+    , m_classes()
   { }
 
   void Initialize();
@@ -596,23 +599,23 @@ public:
 using cstring = const char *;
 using TgcString = std::string;
 
-META_DECLARE_TYPE(bool);
+META_DECLARE_TYPE(bool)
 
-META_DECLARE_TYPE(uint8_t);
-META_DECLARE_TYPE(int8_t);
-META_DECLARE_TYPE(uint16_t);
-META_DECLARE_TYPE(int16_t);
-META_DECLARE_TYPE(uint32_t);
-META_DECLARE_TYPE(int32_t);
-META_DECLARE_TYPE(uint64_t);
-META_DECLARE_TYPE(int64_t);
-META_DECLARE_TYPE(float);
-META_DECLARE_TYPE(double);
+META_DECLARE_TYPE(uint8_t)
+META_DECLARE_TYPE(int8_t)
+META_DECLARE_TYPE(uint16_t)
+META_DECLARE_TYPE(int16_t)
+META_DECLARE_TYPE(uint32_t)
+META_DECLARE_TYPE(int32_t)
+META_DECLARE_TYPE(uint64_t)
+META_DECLARE_TYPE(int64_t)
+META_DECLARE_TYPE(float)
+META_DECLARE_TYPE(double)
 
-META_DECLARE_TYPE(cstring);
-META_DECLARE_TYPE(TgcString);
+META_DECLARE_TYPE(cstring)
+META_DECLARE_TYPE(TgcString)
 
-META_DECLARE_CLASS(MetaClass);
+META_DECLARE_CLASS(MetaClass)
 
 // #ifndef __META_HPP__
 #endif
