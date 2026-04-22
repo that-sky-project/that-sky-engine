@@ -127,7 +127,15 @@ class MetaVariable: public MetaObject<MetaVariable> {
 // ----------------------------------------------------------------------------
 
 class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
-
+public:
+  void *unk_1;
+  void *signature[3];
+  void *function;
+  void *unk_2;
+  int unk_3;
+  void (*applyWrapper)();
+  void (*initSignature)(void *);
+  const MetaClass *(*getType)();
 };
 
 // ----------------------------------------------------------------------------
@@ -135,7 +143,16 @@ class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
 // ----------------------------------------------------------------------------
 
 class MetaMemberVariable: public MetaObject<MetaMemberVariable> {
-
+public:
+  uint64_t unk_1;
+  uint64_t m_offsetOf;
+  int unk_2;
+  const MetaType *(*m_getType)();
+  const MetaClass *(*m_getClass)();
+  uint64_t m_countAddress;
+  int unk_4;
+  uint64_t unk_5;
+  uint64_t m_staticArraySize;
 };
 
 // ----------------------------------------------------------------------------
