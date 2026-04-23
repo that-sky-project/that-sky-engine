@@ -493,7 +493,7 @@ void MetaClass::ReadType(
       // Not a valid topological order.
       goto Err;
 
-    for (auto &it: m_baseTopoIdList) {
+    for (const auto &it: m_baseTopoIdList) {
       // Find parent class. The expected type must have a valid topological
       // order, and the base class list of the actual type contains this order.
       if (it == m_topoOrder) {

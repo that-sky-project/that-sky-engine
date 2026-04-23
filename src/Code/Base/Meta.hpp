@@ -78,6 +78,7 @@ using MetaStrHashMap = std::unordered_map<const char *, Tv, MetaStrHash, MetaStr
 // [SECTION] MetaObject
 // ----------------------------------------------------------------------------
 
+// Represents an object.
 template<typename T>
 class MetaObject {
 public:
@@ -102,8 +103,11 @@ public:
     , m_prev(src.m_prev)
   { }
 
+  // Name of the object.
   const char *m_name;
+  // External descriptors.
   void *m_fields;
+  // Previous object, build a chain list for initialization.
   T *m_prev;
 };
 
@@ -127,6 +131,7 @@ class MetaVariable: public MetaObject<MetaVariable> {
 // [SECTION] MetaMemberFunction
 // ----------------------------------------------------------------------------
 
+// Represents a member function.
 class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
 public:
   void *unk_1;
@@ -143,16 +148,23 @@ public:
 // [SECTION] MetaMemberVariable
 // ----------------------------------------------------------------------------
 
+// Represents a member variable.
 class MetaMemberVariable: public MetaObject<MetaMemberVariable> {
 public:
   uint64_t unk_1;
+  // Offset of the member variable in the object.
   uint64_t m_offsetOf;
   int unk_2;
+  // Get the type of this member vairable.
   const MetaType *(*m_getType)();
+  // Get the class of this member variable belongs to.
   const MetaClass *(*m_getClass)();
+  // Offset of array length.
   uint64_t m_countAddress;
   int unk_4;
-  uint64_t unk_5;
+  // Type of the array length.
+  const MetaType *(*m_countType)();
+  // Max length of the array.
   uint64_t m_staticArraySize;
 };
 
@@ -160,6 +172,7 @@ public:
 // [SECTION] MetaType
 // ----------------------------------------------------------------------------
 
+// Repersents a type.
 class MetaType: public MetaObject<MetaType> {
 public:
   MetaType(
@@ -253,7 +266,9 @@ public:
 
   MetaType &operator=(const MetaType &) = default;
 
+  //
   void *unk_1;
+  // Point to currently activated copy of the type/class.
   MetaType *m_self;
 
 protected:
@@ -276,7 +291,9 @@ protected:
 // ----------------------------------------------------------------------------
 
 struct MetaDataContainer {
+  // Member variables of the object.
   MetaStrHashMap<MetaMemberVariable *> m_variables;
+  // Member functions of the object.
   MetaStrHashMap<MetaMemberFunction *> m_functions;
   std::unordered_map<const char *, void *> unk_3;
   std::unordered_map<const char *, void *> unk_4;
@@ -372,11 +389,17 @@ public:
   // from `Object *` to `T *`.
   virtual void *Downcast(Object *const &object) const = 0;
 
+  // Call the function to get the parent class.
   PFN_RegisterClass m_parent;
+  // Global id of the metaclass.
   int m_globalId;
+  // Topology id of the metaclass.
   int m_topoOrder;
+  // Topology id list of parent classes in the inheritance chain.
   std::vector<int> m_baseTopoIdList;
+  // Point to external data container.
   MetaDataContainer *m_metaDataContainer;
+  //
   void *m_vtableCache;
 };
 
