@@ -66,6 +66,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\src\Code\Base\Assert.hpp" />
     <ClInclude Include="..\..\..\src\Code\Base\LuaInterface.hpp" />
+    <ClInclude Include="..\..\..\src\Code\Base\Meta.hpp" />
     <ClInclude Include="..\..\..\src\Code\Base\StlAllocator.hpp" />
     <ClInclude Include="..\..\..\src\Code\Base\Types.h" />
   </ItemGroup>

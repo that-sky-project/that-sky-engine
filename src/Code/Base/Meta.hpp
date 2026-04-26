@@ -310,6 +310,12 @@ protected:
   using Payload = void *;
 
 public:
+  struct ResolveMemberContext {
+    int offset;
+    int unk_1;
+    int unk_2;
+  };
+
   static constexpr int kMaxClasses = 0xA00;
 
   MetaClass(
@@ -388,6 +394,13 @@ public:
   // Get the pointer to a subclass from an Object sub object, i.e. static_cast
   // from `Object *` to `T *`.
   virtual void *Downcast(Object *const &object) const = 0;
+
+  // Resolve member variable base address.
+  virtual void *ResolveMember(
+    void *ppObject,
+    const MetaClass *pClass,
+    const ResolveMemberContext *context
+  ) const = 0;
 
   // Call the function to get the parent class.
   PFN_RegisterClass m_parent;
@@ -518,6 +531,27 @@ public:
       return nullptr;
 
     return (T *)object;
+  }
+
+  virtual void *ResolveMember(
+    void *ppObject,
+    const MetaClass *pClass,
+    const ResolveMemberContext *pContext
+  ) const override {
+    i32 v5 = pContext->unk_1
+      , v6 = pContext->unk_2;
+    Payload pObject = nullptr;
+
+    DynamicCast(&pObject, ppObject, pClass);
+    SkyAssert(pObject);
+
+    uintptr_t base = (uintptr_t)pObject;
+    if (v6)
+      // We don't know why TGC wrote this. Let's just copy.
+      // In almost all cases, this line won't be triggered.
+      base = pObject + v5 + *(int *)(*(uintptr_t *)(base + v5) + 4i64 * (v6 >> 2));
+
+    return (void *)(base + pContext->offset);
   }
 };
 

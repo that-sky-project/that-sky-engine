@@ -340,6 +340,14 @@ public:
   virtual void *Upcast(void *const &) const override { return nullptr; }
 
   virtual void *Downcast(Object *const &) const override { return nullptr; }
+
+  virtual void *ResolveMember(
+    void *,
+    const MetaClass *,
+    const ResolveMemberContext *
+  ) const override {
+    return nullptr;
+  }
 };
 
 static MetaClassVoid g_metaType_void{"void"};
@@ -438,7 +446,7 @@ void MetaClass::WriteType(
     , pObject = *ppObject
     , result;
 
- if (!pObject)
+  if (!pObject)
     return lua_pushnil(L);
 
   Object *pBase = (Object *)Upcast(pObject);

@@ -35,5 +35,8 @@
     <ClInclude Include="..\..\..\src\Code\Base\StlAllocator.hpp">
       <Filter>Code\Base</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Base\Meta.hpp">
+      <Filter>Code\Base</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
