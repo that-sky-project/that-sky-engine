@@ -549,7 +549,7 @@ public:
     if (v6)
       // We don't know why TGC wrote this. Let's just copy.
       // In almost all cases, this line won't be triggered.
-      base = pObject + v5 + *(int *)(*(uintptr_t *)(base + v5) + 4i64 * (v6 >> 2));
+      base = base + v5 + *(int *)(*(uintptr_t *)(base + v5) + 4i64 * (v6 >> 2));
 
     return (void *)(base + pContext->offset);
   }

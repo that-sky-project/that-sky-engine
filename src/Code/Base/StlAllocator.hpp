@@ -1,6 +1,8 @@
 #ifndef __STLALLOCATOR_HPP__
 #define __STLALLOCATOR_HPP__
 
+#include <new>
+
 #pragma warning(disable: 28251)
 
 void *operator new(size_t _Size);
