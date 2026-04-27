@@ -174,7 +174,12 @@ public:
 
 // Repersents a type.
 class MetaType: public MetaObject<MetaType> {
+protected:
+  using NoChainList_t = void *;
+
 public:
+  static constexpr NoChainList_t noChainList = nullptr;
+
   MetaType(
     const char *name
   )
@@ -185,6 +190,15 @@ public:
     m_prev = MetaObject<MetaType>::m_List();
     MetaObject<MetaType>::m_List() = this;
   }
+
+  MetaType(
+    const char *name,
+    const NoChainList_t &
+  )
+    : MetaObject<MetaType>(name)
+    , unk_1(nullptr)
+    , m_self(this)
+  { }
 
   MetaType(
     const MetaType &src
@@ -323,6 +337,20 @@ public:
     PFN_RegisterClass parent = nullptr
   )
     : MetaType(name)
+    , m_parent(parent)
+    , m_globalId(-1)
+    , m_topoOrder(-1)
+    , m_baseTopoIdList()
+    , m_metaDataContainer(nullptr)
+    , m_vtableCache(nullptr)
+  { }
+
+  MetaClass(
+    const char *name,
+    const NoChainList_t &,
+    PFN_RegisterClass parent = nullptr
+  )
+    : MetaType(name, MetaType::noChainList)
     , m_parent(parent)
     , m_globalId(-1)
     , m_topoOrder(-1)
