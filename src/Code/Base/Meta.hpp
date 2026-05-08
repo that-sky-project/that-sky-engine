@@ -41,6 +41,27 @@ template<> const MetaClass *GetMetaClassByType<T *>() {\
 
 #define MetaClassId(T) MetaClassImpl<T>::Must_call_META_REGISTER_CLASS()->m_globalId
 
+// Register a member variable.
+#define META_REGISTER_SIMPLE_MEMBER(_Type, _Class, _Name) \
+static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
+  #_Name,\
+  (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
+  (int32_t)offsetof(_Class, _Name),\
+  (PFN_GetType)GetMetaTypeByType<_Type>\
+};
+
+// Register a member array.
+#define META_REGISTER_STATIC_MEMBER(_Type, _Class, _Name, _Length, _CountType, _CountName) \
+static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
+  #_Name,\
+  (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
+  (int32_t)offsetof(_Class, _Name),\
+  (PFN_GetType)GetMetaTypeByType<_Type>,\
+  (int32_t)offsetof(_Class, _CountName),\
+  (PFN_GetType)GetMetaTypeByType<_CountType>,\
+  _Length\
+};
+
 // ----------------------------------------------------------------------------
 // [SECTION] Declarations
 // ----------------------------------------------------------------------------
@@ -74,6 +95,11 @@ struct MetaStrLt {
 template<typename Tv>
 using MetaStrHashMap = std::unordered_map<const char *, Tv, MetaStrHash, MetaStrLt>;
 
+using PFN_RegisterType = MetaType *(*)();
+using PFN_RegisterClass = MetaClass *(*)();
+using PFN_GetType = const MetaType *(*)();
+using PFN_GetClass = const MetaClass *(*)();
+
 // ----------------------------------------------------------------------------
 // [SECTION] MetaObject
 // ----------------------------------------------------------------------------
@@ -91,8 +117,6 @@ public:
     const char *name
   )
     : m_name(name)
-    , m_fields(nullptr)
-    , m_prev(nullptr)
   { }
 
   MetaObject(
@@ -103,12 +127,18 @@ public:
     , m_prev(src.m_prev)
   { }
 
+  inline cstring &GetName() { return m_name; }
+  inline const cstring &GetName() const { return m_name; }
+  inline void *GetFields() const { return m_fields; }
+  inline T *GetPrev() const { return m_prev; }
+
+protected:
   // Name of the object.
-  const char *m_name;
+  const char *m_name = nullptr;
   // External descriptors.
-  void *m_fields;
+  void *m_fields = nullptr;
   // Previous object, build a chain list for initialization.
-  T *m_prev;
+  T *m_prev = nullptr;
 };
 
 // ----------------------------------------------------------------------------
@@ -151,21 +181,104 @@ public:
 // Represents a member variable.
 class MetaMemberVariable: public MetaObject<MetaMemberVariable> {
 public:
-  uint64_t unk_1;
+  struct Context {
+    Context(
+      int32_t offset,
+      int32_t vbtableOffset,
+      int32_t vbtableSlot
+    )
+      : offset(offset)
+      , vbtableOffset(vbtableOffset)
+      , vbtableSlot(vbtableSlot)
+    { }
+
+    // Offset of a member variable within the object (either the passed object
+    // itself or a base class subobject).
+    int32_t offset = 0;
+    // Offset of the vbtable within the object itself, always be 0 or 8.
+    int32_t vbtableOffset = 0;
+    // The vbtable slot index corresponding to the base class subobject that
+    // contains the target member variable.
+    int32_t vbtableSlot = 0;
+  };
+
+  // Register a static array member variable.
+  MetaMemberVariable(
+    const char *name,
+    PFN_GetClass clazz,
+    int32_t offset,
+    PFN_GetType type,
+    int32_t countOffset,
+    PFN_GetType countType,
+    uint64_t maxSize
+  )
+    : MetaObject<MetaMemberVariable>(name)
+    , m_address(offset)
+    , m_type(type)
+    , m_class(clazz)
+    , m_countAddress(countOffset)
+    , m_countType(countType)
+    , m_staticArraySize(maxSize)
+  {
+    m_prev = MetaObject<MetaMemberVariable>::m_List();
+    MetaObject<MetaMemberVariable>::m_List() = this;
+  }
+
+  // Register a dynamic array member variable.
+  MetaMemberVariable(
+    const char *name,
+    PFN_GetClass clazz,
+    int32_t offset,
+    PFN_GetType type,
+    int32_t countOffset,
+    PFN_GetType countType
+  )
+    : MetaMemberVariable(name, clazz, offset, type, countOffset, countType, 0)
+  { }
+
+  // Register a simple member variable.
+  MetaMemberVariable(
+    const char *name,
+    PFN_GetClass clazz,
+    int32_t offset,
+    PFN_GetType type
+  )
+    : MetaMemberVariable(name, clazz, offset, type, 0, nullptr, 0)
+  { }
+
+  inline Context GetContext() {
+    return { m_address, m_vbAddress, m_vbSlot };
+  }
+
+  inline Context GetCountContext() {
+    return { m_countAddress, m_countVbAddress, m_countVbSlot };
+  }
+
+  inline const MetaType *GetType() { return m_type(); }
+  inline const MetaType *GetCountType() { return m_countType(); }
+  inline const MetaClass *GetClass() { return m_class(); }
+  inline uint64_t GetStaticSize() { return m_staticArraySize; }
+  inline bool HasCount() { return m_countAddress || m_countVbAddress != -1; }
+  inline bool IsDynamic() { return HasCount() && !m_staticArraySize; }
+
+protected:
+  uint64_t unk_1 = 0;
   // Offset of the member variable in the object.
-  uint64_t m_offsetOf;
-  int unk_2;
-  // Get the type of this member vairable.
-  const MetaType *(*m_getType)();
+  int32_t m_address = 0;
+  int32_t m_vbAddress = 0;
+  int32_t m_vbSlot = 0;
+  // Get the type of this member variable.
+  PFN_GetType m_type = nullptr;
   // Get the class of this member variable belongs to.
-  const MetaClass *(*m_getClass)();
-  // Offset of array length.
-  uint64_t m_countAddress;
-  int unk_4;
+  PFN_GetClass m_class = nullptr;
+  // Descriptor of array length.
+  int32_t m_countAddress = 0;
+  int32_t m_countVbAddress = 0;
+  int32_t m_countVbSlot = -1;
   // Type of the array length.
-  const MetaType *(*m_countType)();
+  PFN_GetType m_countType = nullptr;
   // Max length of the array.
-  uint64_t m_staticArraySize;
+  uint64_t m_staticArraySize = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -184,8 +297,6 @@ public:
     const char *name
   )
     : MetaObject<MetaType>(name)
-    , unk_1(nullptr)
-    , m_self(this)
   {
     m_prev = MetaObject<MetaType>::m_List();
     MetaObject<MetaType>::m_List() = this;
@@ -196,8 +307,6 @@ public:
     const NoChainList_t &
   )
     : MetaObject<MetaType>(name)
-    , unk_1(nullptr)
-    , m_self(this)
   { }
 
   MetaType(
@@ -280,10 +389,10 @@ public:
 
   MetaType &operator=(const MetaType &) = default;
 
-  //
-  void *unk_1;
+  // Unknown member, maybe for padding.
+  void *unk_1 = nullptr;
   // Point to currently activated copy of the type/class.
-  MetaType *m_self;
+  MetaType *m_self = this;
 
 protected:
   // Helper functions for extracting C strings.
@@ -306,15 +415,13 @@ protected:
 
 struct MetaDataContainer {
   // Member variables of the object.
-  MetaStrHashMap<MetaMemberVariable *> m_variables;
+  MetaStrHashMap<MetaMemberVariable *> m_variables = {};
   // Member functions of the object.
-  MetaStrHashMap<MetaMemberFunction *> m_functions;
-  std::unordered_map<const char *, void *> unk_3;
-  std::unordered_map<const char *, void *> unk_4;
-  std::unordered_map<const char *, void *> unk_5;
+  MetaStrHashMap<MetaMemberFunction *> m_functions = {};
+  std::unordered_map<const char *, void *> unk_3 = {};
+  std::unordered_map<const char *, void *> unk_4 = {};
+  std::unordered_map<const char *, void *> unk_5 = {};
 };
-
-using PFN_RegisterClass = MetaClass *(*)();
 
 // MetaClass object implementation.
 // NOTE: We can consider MetaClass as MetaTypePointer. All operations of
@@ -324,12 +431,7 @@ protected:
   using Payload = void *;
 
 public:
-  struct ResolveMemberContext {
-    int offset;
-    int unk_1;
-    int unk_2;
-  };
-
+  // The original code of TGC as below.
   static constexpr int kMaxClasses = 0xA00;
 
   MetaClass(
@@ -338,11 +440,6 @@ public:
   )
     : MetaType(name)
     , m_parent(parent)
-    , m_globalId(-1)
-    , m_topoOrder(-1)
-    , m_baseTopoIdList()
-    , m_metaDataContainer(nullptr)
-    , m_vtableCache(nullptr)
   { }
 
   MetaClass(
@@ -352,11 +449,6 @@ public:
   )
     : MetaType(name, MetaType::noChainList)
     , m_parent(parent)
-    , m_globalId(-1)
-    , m_topoOrder(-1)
-    , m_baseTopoIdList()
-    , m_metaDataContainer(nullptr)
-    , m_vtableCache(nullptr)
   { }
 
   virtual ~MetaClass() = default;
@@ -427,20 +519,20 @@ public:
   virtual void *ResolveMember(
     void *ppObject,
     const MetaClass *pClass,
-    const ResolveMemberContext *context
+    const MetaMemberVariable::Context *context
   ) const = 0;
 
   // Call the function to get the parent class.
-  PFN_RegisterClass m_parent;
+  PFN_RegisterClass m_parent = nullptr;
   // Global id of the metaclass.
-  int m_globalId;
+  int m_globalId = -1;
   // Topology id of the metaclass.
-  int m_topoOrder;
+  int m_topoOrder = -1;
   // Topology id list of parent classes in the inheritance chain.
-  std::vector<int> m_baseTopoIdList;
+  std::vector<int> m_baseTopoIdList = {};
   // Point to external data container.
-  MetaDataContainer *m_metaDataContainer;
-  //
+  MetaDataContainer *m_metaDataContainer = nullptr;
+  // 
   void *m_vtableCache;
 };
 
@@ -564,20 +656,20 @@ public:
   virtual void *ResolveMember(
     void *ppObject,
     const MetaClass *pClass,
-    const ResolveMemberContext *pContext
+    const MetaMemberVariable::Context *pContext
   ) const override {
-    i32 v5 = pContext->unk_1
-      , v6 = pContext->unk_2;
+    i32 vbtblOffs = pContext->vbtableOffset
+      , vbtblSlot = pContext->vbtableSlot;
     Payload pObject = nullptr;
 
     DynamicCast(&pObject, ppObject, pClass);
     SkyAssert(pObject);
 
     uintptr_t base = (uintptr_t)pObject;
-    if (v6)
-      // We don't know why TGC wrote this. Let's just copy.
-      // In almost all cases, this line won't be triggered.
-      base = base + v5 + *(int *)(*(uintptr_t *)(base + v5) + 4i64 * (v6 >> 2));
+    if (vbtblSlot)
+      // Simulating MSVC virtual base table addressing, resolves the address
+      // of base class subobjects.
+      base = base + vbtblOffs + *(int *)(*(uintptr_t *)(base + vbtblOffs) + 4 * (vbtblSlot >> 2));
 
     return (void *)(base + pContext->offset);
   }

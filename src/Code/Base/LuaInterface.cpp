@@ -37,7 +37,7 @@ int MetaLuaToString(
   MetaClass *upval = (MetaClass *)lua_touserdata(L, lua_upvalueindex(1));
   SkyAssert(upval);
 
-  lua_pushstring(L, upval->m_name);
+  lua_pushstring(L, upval->GetName());
 
   return 1;
 }
@@ -219,7 +219,7 @@ void MetaLuaBindClass(
   lua_pushlightuserdata(L, (void *)T);
   lua_pushcclosure(L, MetaLuaDeleteImpl, 1);
   lua_setfield(L, -2, "delete");
-  lua_pushstring(L, T->m_name);
+  lua_pushstring(L, T->GetName());
   lua_setfield(L, -2, "__type");
   lua_pushinteger(L, T->SizeOfObject());
   lua_setfield(L, -2, "__sizeof");
@@ -227,5 +227,5 @@ void MetaLuaBindClass(
   lua_setfield(L, -2, "__alignof");
   lua_pushlightuserdata(L, (void *)T);
   lua_setfield(L, -2, "__metaclass");
-  lua_setglobal(L, T->m_name);
+  lua_setglobal(L, T->GetName());
 }

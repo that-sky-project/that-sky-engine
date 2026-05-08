@@ -344,7 +344,7 @@ public:
   virtual void *ResolveMember(
     void *,
     const MetaClass *,
-    const ResolveMemberContext *
+    const MetaMemberVariable::Context *
   ) const override {
     return nullptr;
   }
@@ -593,12 +593,12 @@ void MetaSystem::Initialize() {
 
   m_data = new MetaSystemDataContainer();
 
-  for (auto it = MetaObject<MetaType>::m_List(); it; it = it->m_prev) {
-    char *name = new char[strlen(it->m_name) + 1];
-    strcpy(name, it->m_name);
+  for (auto it = MetaObject<MetaType>::m_List(); it; it = it->GetPrev()) {
+    char *name = new char[strlen(it->GetName()) + 1];
+    strcpy(name, it->GetName());
 
     MetaType *mt = it->Copy();
-    mt->m_name = name;
+    mt->GetName() = name;
     mt->m_self = it->m_self = mt;
 
     m_data->m_metaTypes[name] = mt;
