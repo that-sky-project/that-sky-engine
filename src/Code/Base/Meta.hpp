@@ -17,29 +17,57 @@ extern "C" {
 #include "Assert.hpp"
 
 // ----------------------------------------------------------------------------
+// [SECTION] HeaderMisc
+// ----------------------------------------------------------------------------
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+
+// ----------------------------------------------------------------------------
 // [SECTION] Macros
 // ----------------------------------------------------------------------------
 
 // Declare a type.
 #define META_DECLARE_TYPE(T)\
-template<> const MetaType *GetMetaTypeByType<T>();
+  template<> LPCMetaType GetMetaTypeByType<T>();
 
 // Declare a class.
 #define META_DECLARE_CLASS(T) \
-template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
-template<> const MetaClass *GetMetaClassByType<T *>();
+  template<> LPMetaClass MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+  template<> LPCMetaClass GetMetaClassByType<T *>();
+
+// Register a type.
+#define META_REGISTER_TYPE(T)\
+  template<>\
+  LPCMetaType GetMetaTypeByType<T>() {\
+    return g_metaType_##T.GetActive();\
+  }
+
+// Register a number type.
+#define META_REGISTER_TYPE_NUMBER(T)\
+  static MetaTypeNumber<T> g_metaType_##T{#T};\
+  META_REGISTER_TYPE(T)
+
+// Register a number type.
+#define META_REGISTER_TYPE_STRING(T)\
+  static MetaTypeString<T> g_metaType_##T{#T};\
+  META_REGISTER_TYPE(T)
 
 // Register a class.
 #define META_REGISTER_CLASS(T, ...) \
-static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
-template<> MetaClass *MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
-  return static_cast<MetaClassImpl<T> *>(g_metaClass_##T.m_self);\
-}\
-template<> const MetaClass *GetMetaClassByType<T *>() {\
-  return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
-}
+  static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
+  template<> LPMetaClass MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
+    return static_cast<MetaClassImpl<T> *>(g_metaClass_##T.m_self);\
+  }\
+  template<> LPCMetaClass GetMetaClassByType<T *>() {\
+    return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+  }
 
-#define MetaClassId(T) MetaClassImpl<T>::Must_call_META_REGISTER_CLASS()->m_globalId
+#define MetaClassId(T) MetaClassImpl<T>::Must_call_META_REGISTER_CLASS()->GetId()
 
 // Register a member variable.
 #define META_REGISTER_SIMPLE_MEMBER(_Type, _Class, _Name) \
@@ -60,6 +88,13 @@ static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
   (int32_t)offsetof(_Class, _CountName),\
   (PFN_GetType)GetMetaTypeByType<_CountType>,\
   _Length\
+};
+
+#define META_REGISTER_CONSTANT(_Type, _Name, _Value) \
+static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
+  #_Name,\
+  GetMetaTypeByType<_Type>,\
+  _Value\
 };
 
 // ----------------------------------------------------------------------------
@@ -83,7 +118,7 @@ struct MetaStrHash {
   }
 };
 
-struct MetaStrLt {
+struct MetaStrEq {
   bool operator()(
     const char* a,
     const char* b
@@ -93,12 +128,17 @@ struct MetaStrLt {
 };
 
 template<typename Tv>
-using MetaStrHashMap = std::unordered_map<const char *, Tv, MetaStrHash, MetaStrLt>;
+using MetaStrHashMap = std::unordered_map<cstring , Tv, MetaStrHash, MetaStrEq>;
 
-using PFN_RegisterType = MetaType *(*)();
-using PFN_RegisterClass = MetaClass *(*)();
-using PFN_GetType = const MetaType *(*)();
-using PFN_GetClass = const MetaClass *(*)();
+using LPMetaType = MetaType *;
+using LPMetaClass = MetaClass *;
+using LPCMetaType = const MetaType *;
+using LPCMetaClass = const MetaClass *;
+
+using PFN_RegisterType = LPMetaType (*)();
+using PFN_RegisterClass = LPMetaClass (*)();
+using PFN_GetType = LPCMetaType (*)();
+using PFN_GetClass = LPCMetaClass (*)();
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaObject
@@ -114,7 +154,7 @@ public:
   }
 
   MetaObject(
-    const char *name
+    cstring name
   )
     : m_name(name)
   { }
@@ -134,7 +174,7 @@ public:
 
 protected:
   // Name of the object.
-  const char *m_name = nullptr;
+  cstring m_name = nullptr;
   // External descriptors.
   void *m_fields = nullptr;
   // Previous object, build a chain list for initialization.
@@ -158,6 +198,52 @@ class MetaVariable: public MetaObject<MetaVariable> {
 };
 
 // ----------------------------------------------------------------------------
+// [SECTION] MetaConstant
+// ----------------------------------------------------------------------------
+
+class MetaConstant: public MetaObject<MetaConstant> {
+public:
+  MetaConstant(
+    cstring name,
+    PFN_RegisterType type
+  )
+    : MetaObject<MetaConstant>(name)
+    , m_type(type)
+  {
+    m_prev = MetaObject<MetaConstant>::m_List(); 
+    MetaObject<MetaConstant>::m_List() = this; 
+  }
+
+  inline LPCMetaType GetType() {
+    return m_type();
+  }
+
+protected:
+  void *unk_1;
+  void *m_valuePtr;
+  PFN_RegisterType m_type;
+};
+
+template<typename T>
+class MetaConstantImpl: public MetaConstant {
+public:
+  MetaConstantImpl(
+    cstring name,
+    PFN_RegisterType type,
+    T value
+  )
+    : MetaConstant(name, type)
+  {
+    m_valuePtr = new T;
+    *m_valuePtr = value;
+  }
+
+  inline T GetValue() {
+    return *m_valuePtr;
+  }
+};
+
+// ----------------------------------------------------------------------------
 // [SECTION] MetaMemberFunction
 // ----------------------------------------------------------------------------
 
@@ -171,7 +257,7 @@ public:
   int unk_3;
   void (*applyWrapper)();
   void (*initSignature)(void *);
-  const MetaClass *(*getType)();
+  LPCMetaClass (*getType)();
 };
 
 // ----------------------------------------------------------------------------
@@ -204,7 +290,7 @@ public:
 
   // Register a static array member variable.
   MetaMemberVariable(
-    const char *name,
+    cstring name,
     PFN_GetClass clazz,
     int32_t offset,
     PFN_GetType type,
@@ -226,7 +312,7 @@ public:
 
   // Register a dynamic array member variable.
   MetaMemberVariable(
-    const char *name,
+    cstring name,
     PFN_GetClass clazz,
     int32_t offset,
     PFN_GetType type,
@@ -238,7 +324,7 @@ public:
 
   // Register a simple member variable.
   MetaMemberVariable(
-    const char *name,
+    cstring name,
     PFN_GetClass clazz,
     int32_t offset,
     PFN_GetType type
@@ -254,9 +340,9 @@ public:
     return { m_countAddress, m_countVbAddress, m_countVbSlot };
   }
 
-  inline const MetaType *GetType() { return m_type(); }
-  inline const MetaType *GetCountType() { return m_countType(); }
-  inline const MetaClass *GetClass() { return m_class(); }
+  inline LPCMetaType GetType() { return m_type(); }
+  inline LPCMetaType GetCountType() { return m_countType(); }
+  inline LPCMetaClass GetClass() { return m_class(); }
   inline uint64_t GetStaticSize() { return m_staticArraySize; }
   inline bool HasCount() { return m_countAddress || m_countVbAddress != -1; }
   inline bool IsDynamic() { return HasCount() && !m_staticArraySize; }
@@ -294,7 +380,7 @@ public:
   static constexpr NoChainList_t noChainList = nullptr;
 
   MetaType(
-    const char *name
+    cstring name
   )
     : MetaObject<MetaType>(name)
   {
@@ -303,7 +389,7 @@ public:
   }
 
   MetaType(
-    const char *name,
+    cstring name,
     const NoChainList_t &
   )
     : MetaObject<MetaType>(name)
@@ -342,7 +428,7 @@ public:
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
-    const MetaType *sourceType
+    LPCMetaType sourceType
   ) const = 0;
 
   // Return whether the type is a number type.
@@ -358,12 +444,12 @@ public:
 
   // Convert the type represented by the metaclass to a string.
   // NOTE: This function is considered as single-threaded.
-  virtual const char *ToString(
+  virtual cstring ToString(
     void *object
   ) const = 0;
 
   // Return "this" when the type is not a primitive type.
-  virtual const MetaClass *AsClass() const = 0;
+  virtual LPCMetaClass AsClass() const = 0;
 
   // Write the type represented by the metaclass to lua_State.
   virtual void WriteType(
@@ -379,7 +465,7 @@ public:
   ) const = 0;
 
   // Copy the MetaType object to a new MetaType object.
-  virtual MetaType *Copy() const = 0;
+  virtual LPMetaType Copy() const = 0;
 
   virtual void SimpleCopy(
     void *target
@@ -389,25 +475,215 @@ public:
 
   MetaType &operator=(const MetaType &) = default;
 
+  inline LPMetaType &GetActive() { return m_self; }
+  inline LPMetaType const &GetActive() const  { return m_self; }
+
+protected:
   // Unknown member, maybe for padding.
   void *unk_1 = nullptr;
   // Point to currently activated copy of the type/class.
-  MetaType *m_self = this;
+  LPMetaType m_self = this;
+};
 
-protected:
-  // Helper functions for extracting C strings.
-  static inline const char *ExtractCString(
-    const char *const *ptr
-  ) {
-    return *ptr;
+template<typename T>
+class MetaTypeNumber: public MetaType {
+public:
+  using value_type      = T;
+  using pointer         = value_type *;
+  using const_pointer   = const value_type *;
+  using reference       = value_type &;
+  using const_reference = const value_type &;
+
+  MetaTypeNumber(cstring name): MetaType(name) { }
+
+  virtual size_t SizeOfType() const override {
+    return sizeof(value_type);
   }
 
-  static inline const char *ExtractCString(
-    std::string *ptr
-  ) {
-    return ptr->c_str();
+  virtual size_t AlignOfType() const override {
+    return alignof(value_type);
+  }
+
+  virtual void *CreateByType() const override {
+    return new value_type;
+  }
+
+  virtual void DeleteByType(void *p) const override {
+    delete (pointer)p;
+  }
+
+  // Construct type T in-place. In most cases this function does nothing.
+  virtual void *ConstructByType(void *p) const override {
+    return new (p) value_type;
+  }
+
+  // Call the destructor function of type T.
+  virtual void DestructByType(void *p) const override {
+    ((value_type *)p)->~value_type();
+  }
+
+  // Perform number type dynamic cast. Convert to lua_Number (double), then
+  // convert to type T.
+  virtual void DynamicCast(
+    void *targetObject,
+    void *sourceObject,
+    LPCMetaType sourceType
+  ) const override {
+    *(pointer)targetObject = (value_type)sourceType->ToNumber(sourceObject);
+  }
+
+  virtual bool IsNumber() const override {
+    return true;
+  }
+
+  virtual bool IsString() const override {
+    return false;
+  }
+
+  // Convert from type T to lua_Number.
+  virtual lua_Number ToNumber(
+    void *object
+  ) const override {
+    return (lua_Number)*(pointer)object;
+  }
+
+  // Convert from type T to string.
+  virtual cstring ToString(
+    void *object
+  ) const override {
+    static char buf[80];
+    snprintf(buf, 65, "%g", ToNumber(object));
+    return buf;
+  }
+
+  virtual LPCMetaClass AsClass() const override {
+    return nullptr;
+  }
+
+  virtual void WriteType(
+    lua_State *L,
+    void *object
+  ) const override {
+    lua_pushnumber(L, (lua_Number)*(pointer)object);
+  }
+
+  virtual void ReadType(
+    lua_State *L,
+    int index,
+    void *object
+  ) const override {
+    *(pointer)object = (value_type)luaL_checknumber(L, index);
+  }
+
+  virtual LPMetaType Copy() const override {
+    return new MetaTypeNumber<value_type>{*this};
   }
 };
+
+// Represents a string.
+template<typename T>
+class MetaTypeString: public MetaType {
+public:
+  using value_type      = T;
+  using pointer         = value_type *;
+  using const_pointer   = const value_type *;
+  using reference       = value_type &;
+  using const_reference = const value_type &;
+
+  // Helper function for extracting C strings.
+  static cstring ExtractCString(const_pointer s);
+
+  MetaTypeString(cstring name): MetaType(name) { }
+
+  virtual size_t SizeOfType() const override {
+    return sizeof(value_type);
+  }
+
+  virtual size_t AlignOfType() const override {
+    return alignof(value_type);
+  }
+
+  virtual void *CreateByType() const override {
+    return new value_type;
+  }
+
+  virtual void DeleteByType(void *p) const override {
+    delete (pointer)p;
+  }
+
+  virtual void *ConstructByType(void *p) const override {
+    return new (p) value_type;
+  }
+
+  virtual void DestructByType(void *p) const override {
+    ((value_type *)p)->~value_type();
+  }
+
+  virtual void DynamicCast(
+    void *targetObject,
+    void *sourceObject,
+    LPCMetaType sourceType
+  ) const override {
+    cstring s = sourceType->ToString(sourceObject);
+    *(pointer)targetObject = s;
+  }
+
+  virtual bool IsNumber() const override {
+    return false;
+  }
+
+  virtual bool IsString() const override {
+    return true;
+  }
+
+  virtual lua_Number ToNumber(
+    void *object
+  ) const override {
+    return atof(ExtractCString((pointer)object));
+  }
+
+  virtual cstring ToString(
+    void *object
+  ) const override {
+    return ExtractCString((pointer)object);
+  }
+
+  virtual LPCMetaClass AsClass() const override {
+    return nullptr;
+  }
+
+  virtual void WriteType(
+    lua_State *L,
+    void *object
+  ) const override {
+    lua_pushstring(L, MetaTypeString::ExtractCString((pointer)object));
+  }
+
+  virtual void ReadType(
+    lua_State *L,
+    int index,
+    void *object
+  ) const override {
+    if (!lua_isstring(L, index))
+      return;
+    *(pointer)object = luaL_checklstring(L, index, nullptr);
+  }
+
+  virtual LPMetaType Copy() const override {
+    return new MetaTypeString<T>{
+      static_cast<const MetaTypeString<T> &>(*this)
+    };
+  }
+};
+
+// Must define your own ExtractCString when registering a new string type.
+template<>
+cstring MetaTypeString<cstring>::ExtractCString(
+  const cstring *ptr);
+
+template<>
+cstring MetaTypeString<TgcString>::ExtractCString(
+  const TgcString *ptr);
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaClass
@@ -418,24 +694,28 @@ struct MetaDataContainer {
   MetaStrHashMap<MetaMemberVariable *> m_variables = {};
   // Member functions of the object.
   MetaStrHashMap<MetaMemberFunction *> m_functions = {};
-  std::unordered_map<const char *, void *> unk_3 = {};
-  std::unordered_map<const char *, void *> unk_4 = {};
-  std::unordered_map<const char *, void *> unk_5 = {};
+  std::unordered_map<cstring , void *> unk_3 = {};
+  std::unordered_map<cstring , void *> unk_4 = {};
+  std::unordered_map<cstring , void *> unk_5 = {};
 };
 
 // MetaClass object implementation.
 // NOTE: We can consider MetaClass as MetaTypePointer. All operations of
 // MetaClass is performed on the pointer to the objects.
 class MetaClass: public MetaType {
-protected:
-  using Payload = void *;
-
 public:
+  using object_type     = void;
+  using value_type      = object_type *;
+  using pointer         = value_type *;
+  using const_pointer   = const value_type *;
+  using reference       = value_type &;
+  using const_reference = const value_type &;
+
   // The original code of TGC as below.
   static constexpr int kMaxClasses = 0xA00;
 
   MetaClass(
-    const char *name,
+    cstring name,
     PFN_RegisterClass parent = nullptr
   )
     : MetaType(name)
@@ -443,7 +723,7 @@ public:
   { }
 
   MetaClass(
-    const char *name,
+    cstring name,
     const NoChainList_t &,
     PFN_RegisterClass parent = nullptr
   )
@@ -456,14 +736,13 @@ public:
   virtual void DynamicCast(
     void *targetObject,
     void *sourceObject,
-    const MetaType *sourceType
+    LPCMetaType sourceType
   ) const override;
 
-  virtual double ToNumber(void *) const override;
+  virtual lua_Number ToNumber(void *) const override;
+  virtual cstring ToString(void *) const override;
 
-  virtual const char *ToString(void *) const override;
-
-  virtual const MetaClass *AsClass() const override;
+  virtual LPCMetaClass AsClass() const override;
 
   // Write an object to lua stack.
   virtual void WriteType(
@@ -518,18 +797,23 @@ public:
   // Resolve member variable base address.
   virtual void *ResolveMember(
     void *ppObject,
-    const MetaClass *pClass,
+    LPCMetaClass pClass,
     const MetaMemberVariable::Context *context
   ) const = 0;
+
+  inline LPMetaClass GetParent() const { if (!m_parent) return nullptr; return m_parent(); }
+  inline int32_t GetId() const { return m_globalId; }
+  inline int32_t GetTopoId() const { return m_topoOrder; }
+  inline const MetaDataContainer *GetData() const { return m_metaDataContainer; }
 
   // Call the function to get the parent class.
   PFN_RegisterClass m_parent = nullptr;
   // Global id of the metaclass.
-  int m_globalId = -1;
+  int32_t m_globalId = -1;
   // Topology id of the metaclass.
-  int m_topoOrder = -1;
+  int32_t m_topoOrder = -1;
   // Topology id list of parent classes in the inheritance chain.
-  std::vector<int> m_baseTopoIdList = {};
+  std::vector<int32_t> m_baseTopoIdList = {};
   // Point to external data container.
   MetaDataContainer *m_metaDataContainer = nullptr;
   // 
@@ -540,36 +824,43 @@ public:
 template<typename T>
 class MetaClassImpl: public MetaClass {
 public:
-  static MetaClass *Must_call_META_REGISTER_CLASS() {
+  using object_type     = T;
+  using value_type      = T *;
+  using pointer         = value_type *;
+  using const_pointer   = const value_type *;
+  using reference       = value_type &;
+  using const_reference = const value_type &;
+
+  static LPMetaClass Must_call_META_REGISTER_CLASS() {
     return nullptr;
   }
 
   MetaClassImpl(
-    const char *name,
+    cstring name,
     PFN_RegisterClass parent = nullptr
   )
     : MetaClass(name, parent)
   { }
 
   virtual size_t SizeOfType() const override {
-    return sizeof(Payload);
+    return sizeof(value_type);
   }
 
   virtual size_t AlignOfType() const override {
-    return alignof(Payload);
+    return alignof(value_type);
   }
 
   virtual void *CreateByType() const override {
-    return new Payload{nullptr};
+    return new value_type{nullptr};
   }
 
   virtual void DeleteByType(void *p) const override {
-    delete (Payload *)p;
+    delete (pointer)p;
   }
 
   // Construct a nullptr on p, i.e. p = Payload * = void **.
   virtual void *ConstructByType(void *p) const override {
-    return new (p) Payload{nullptr};
+    return new (p) value_type{nullptr};
   }
 
   virtual void DestructByType(void *p) const override { }
@@ -578,29 +869,29 @@ public:
 
   virtual bool IsString() const override { return false; }
 
-  virtual MetaType *Copy() const override {
-    return new MetaClassImpl<T>{*this};
+  virtual LPMetaType Copy() const override {
+    return new MetaClassImpl<object_type>{*this};
   }
 
   virtual bool IsAbstract() const override {
-    return std::is_abstract_v<T>;
+    return std::is_abstract_v<object_type>;
   }
 
   virtual bool IsPolymorphic() const override {
-    return std::is_abstract_v<T>;
+    return std::is_polymorphic_v<object_type>;
   }
 
   virtual size_t SizeOfObject() const override {
-    return sizeof(T);
+    return sizeof(object_type);
   }
 
   virtual size_t AlignOfObject() const override {
-    return alignof(T);
+    return alignof(object_type);
   }
 
   virtual void *NewObject() const override {
-    if constexpr (!std::is_abstract_v<T>)
-      return new T;
+    if constexpr (!std::is_abstract_v<object_type>)
+      return new object_type;
     else {
       SkyAssertMsg(false, "Tried to call new on abstract or non-default-constructible type.");
       return nullptr;
@@ -611,14 +902,14 @@ public:
     void *object
   ) const override {
     if (object)
-      delete (T *)object;
+      delete (value_type)object;
   }
 
   virtual void *ConstructObject(
     void *object
   ) const override {
-    if constexpr (!std::is_abstract_v<T>)
-      new (object) T;
+    if constexpr (!std::is_abstract_v<object_type>)
+      new (object) object_type;
     else {
       SkyAssertMsg(false, "Tried to call placement new on abstract or non-default-constructible type.");
       return nullptr;
@@ -630,7 +921,7 @@ public:
   virtual void DestructObject(
     void *object
   ) const override {
-    ((T *)object)->~T();
+    ((object_type *)object)->~object_type();
   }
 
   virtual void *Upcast(
@@ -641,7 +932,7 @@ public:
     
     // Convert to `T *` then convert to `Object *`, in order to adjust the
     // pointer.
-    return (Object *)(T *)object;
+    return (Object *)(value_type)object;
   }
 
   virtual void *Downcast(
@@ -655,12 +946,12 @@ public:
 
   virtual void *ResolveMember(
     void *ppObject,
-    const MetaClass *pClass,
+    LPCMetaClass pClass,
     const MetaMemberVariable::Context *pContext
   ) const override {
     i32 vbtblOffs = pContext->vbtableOffset
       , vbtblSlot = pContext->vbtableSlot;
-    Payload pObject = nullptr;
+    value_type pObject = nullptr;
 
     DynamicCast(&pObject, ppObject, pClass);
     SkyAssert(pObject);
@@ -680,33 +971,33 @@ public:
 // ----------------------------------------------------------------------------
 
 // Get an implmentation of MetaType.
-const MetaType *GetMetaType();
+LPCMetaType GetMetaType();
 
 // Get an implmentation of GetMetaClass.
-const MetaClass *GetMetaClass();
+LPCMetaClass GetMetaClass();
 
 // Get a MetaClass from global id.
-const MetaClass *GetMetaClassById(
+LPCMetaClass GetMetaClassById(
   int globalId);
 
 // Get a MetaClass from name.
-const MetaClass *GetMetaClassByName(
-  const char *name,
+LPCMetaClass GetMetaClassByName(
+  cstring name,
   bool constString = false);
 
 bool IsDerivedFrom(
-  const MetaClass *mc1,
-  const MetaClass *mc2);
+  LPCMetaClass mc1,
+  LPCMetaClass mc2);
 
 // Get MetaType from type name.
 template<typename T>
-const MetaType *GetMetaTypeByType() {
+LPCMetaType GetMetaTypeByType() {
   return nullptr;
 }
 
 // Get MetaClassImpl from class.
 template<typename Tp>
-const MetaClass *GetMetaClassByType() {
+LPCMetaClass GetMetaClassByType() {
   return nullptr;
 }
 
@@ -739,14 +1030,14 @@ public:
 // ----------------------------------------------------------------------------
 
 struct MetaSystemDataContainer {
-  MetaStrHashMap<MetaType *> m_metaTypes;
+  MetaStrHashMap<LPMetaType > m_metaTypes;
   MetaStrHashMap<void *> m_metaConstants;
   MetaStrHashMap<void *> m_metaVariables;
   MetaStrHashMap<void *> m_metaFunctions;
-  MetaStrHashMap<MetaClass *> m_metaClasses;
-  std::unordered_map<const char *, void *> unk_6;
-  std::unordered_map<const char *, void *> unk_7;
-  std::unordered_map<const char *, void *> unk_8;
+  MetaStrHashMap<LPMetaClass > m_metaClasses;
+  std::unordered_map<cstring , void *> unk_6;
+  std::unordered_map<cstring , void *> unk_7;
+  std::unordered_map<cstring , void *> unk_8;
 };
 
 META_DECLARE_CLASS(MetaSystem)
@@ -754,7 +1045,7 @@ META_DECLARE_CLASS(MetaSystem)
 class MetaSystem: public Object {
 private:
   static void m_RecursiveInit(
-    MetaClass *pMetaClass,
+    LPMetaClass pMetaClass,
     int *pIdCounter,
     int *pTopologyCounter);
 
@@ -770,11 +1061,8 @@ public:
   void Initialize();
 
   MetaSystemDataContainer *m_data;
-  const MetaClass *m_classes[kMaxClasses];
+  LPCMetaClass m_classes[kMaxClasses];
 };
-
-using cstring = const char *;
-using TgcString = std::string;
 
 META_DECLARE_TYPE(bool)
 

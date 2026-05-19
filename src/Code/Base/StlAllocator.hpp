@@ -4,7 +4,9 @@
 #include <new>
 #include <stddef.h>
 
+#if defined(_MSC_VER)
 #pragma warning(disable: 28251)
+#endif
 
 void *operator new(::size_t _Size);
 void *operator new[](::size_t _Size);
