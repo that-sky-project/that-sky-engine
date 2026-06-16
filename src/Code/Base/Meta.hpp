@@ -219,9 +219,9 @@ public:
   }
 
 protected:
-  void *unk_1;
-  void *m_valuePtr;
-  PFN_RegisterType m_type;
+  void *unk_1 = nullptr;
+  void *m_valuePtr = nullptr;
+  PFN_RegisterType m_type = nullptr;
 };
 
 template<typename T>
@@ -817,7 +817,7 @@ public:
   // Point to external data container.
   MetaDataContainer *m_metaDataContainer = nullptr;
   // 
-  void *m_vtableCache;
+  void *m_vtableCache = nullptr;
 };
 
 // A MetaClass representing "Object" types.
