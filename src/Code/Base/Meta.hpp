@@ -344,8 +344,9 @@ public:
   inline LPCMetaType GetCountType() const { return m_countType(); }
   inline LPCMetaClass GetClass() const { return m_class(); }
   inline uint64_t GetStaticSize() const { return m_staticArraySize; }
-  inline bool HasCount() const { return m_countAddress || m_countVbAddress != -1; }
-  inline bool IsDynamic() const { return HasCount() && !m_staticArraySize; }
+  inline bool IsArray() const { return m_countAddress || m_countVbSlot != -1; }
+  inline bool IsStaticArray() const { return IsArray() && !!m_staticArraySize; }
+  inline bool IsDynamicArray() const { return IsArray() && !m_staticArraySize; }
 
 protected:
   uint64_t unk_1 = 0;
