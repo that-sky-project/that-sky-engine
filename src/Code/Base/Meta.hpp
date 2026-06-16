@@ -694,9 +694,9 @@ struct MetaDataContainer {
   MetaStrHashMap<MetaMemberVariable *> m_variables = {};
   // Member functions of the object.
   MetaStrHashMap<MetaMemberFunction *> m_functions = {};
-  std::unordered_map<cstring , void *> unk_3 = {};
-  std::unordered_map<cstring , void *> unk_4 = {};
-  std::unordered_map<cstring , void *> unk_5 = {};
+  std::unordered_map<cstring, void *> unk_3 = {};
+  std::unordered_map<cstring, void *> unk_4 = {};
+  std::unordered_map<cstring, void *> unk_5 = {};
 };
 
 // MetaClass object implementation.
@@ -1030,11 +1030,11 @@ public:
 // ----------------------------------------------------------------------------
 
 struct MetaSystemDataContainer {
-  MetaStrHashMap<LPMetaType > m_metaTypes;
-  MetaStrHashMap<void *> m_metaConstants;
-  MetaStrHashMap<void *> m_metaVariables;
-  MetaStrHashMap<void *> m_metaFunctions;
-  MetaStrHashMap<LPMetaClass > m_metaClasses;
+  MetaStrHashMap<LPMetaType> m_metaTypes;
+  MetaStrHashMap<MetaConstant *> m_metaConstants;
+  MetaStrHashMap<MetaVariable *> m_metaVariables;
+  MetaStrHashMap<MetaFunction *> m_metaFunctions;
+  MetaStrHashMap<LPMetaClass> m_metaClasses;
   std::unordered_map<cstring , void *> unk_6;
   std::unordered_map<cstring , void *> unk_7;
   std::unordered_map<cstring , void *> unk_8;
