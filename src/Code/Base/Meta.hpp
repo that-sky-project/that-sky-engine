@@ -332,20 +332,20 @@ public:
     : MetaMemberVariable(name, clazz, offset, type, 0, nullptr, 0)
   { }
 
-  inline Context GetContext() {
+  inline Context GetContext() const {
     return { m_address, m_vbAddress, m_vbSlot };
   }
 
-  inline Context GetCountContext() {
+  inline Context GetCountContext() const {
     return { m_countAddress, m_countVbAddress, m_countVbSlot };
   }
 
-  inline LPCMetaType GetType() { return m_type(); }
-  inline LPCMetaType GetCountType() { return m_countType(); }
-  inline LPCMetaClass GetClass() { return m_class(); }
-  inline uint64_t GetStaticSize() { return m_staticArraySize; }
-  inline bool HasCount() { return m_countAddress || m_countVbAddress != -1; }
-  inline bool IsDynamic() { return HasCount() && !m_staticArraySize; }
+  inline LPCMetaType GetType() const { return m_type(); }
+  inline LPCMetaType GetCountType() const { return m_countType(); }
+  inline LPCMetaClass GetClass() const { return m_class(); }
+  inline uint64_t GetStaticSize() const { return m_staticArraySize; }
+  inline bool HasCount() const { return m_countAddress || m_countVbAddress != -1; }
+  inline bool IsDynamic() const { return HasCount() && !m_staticArraySize; }
 
 protected:
   uint64_t unk_1 = 0;
