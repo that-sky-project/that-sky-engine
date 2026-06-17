@@ -4,9 +4,12 @@
 extern "C" {
 #include "lua.h"
 #include "lauxlib.h"
+#include "lstate.h"
 }
 
 #include "Meta.hpp"
+
+META_DECLARE_CLASS(lua_State)
 
 int MetaLuaEq(
   lua_State *L);

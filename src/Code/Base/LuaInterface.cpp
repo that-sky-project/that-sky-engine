@@ -45,13 +45,15 @@ int MetaLuaToString(
 int MetaLuaCast(
   lua_State *L
 ) {
-  Object **ppSourceObj, *t, *pBase;
-  const MetaClass *upval, *mc, *sourceClass;
-  const MetaType *sourceType;
+  using Tv = MetaClassImpl<Object>::value_type;
+
+  Tv *ppSourceObj, t, pBase;
+  LPCMetaClass upval, mc, sourceClass;
+  LPCMetaType sourceType;
   void *targetObj;
 
   // Upvalue points to current MetaClass, i.e. the type to be casted to.
-  upval = (const MetaClass *)lua_touserdata(L, lua_upvalueindex(1));
+  upval = (LPCMetaClass)lua_touserdata(L, lua_upvalueindex(1));
   SkyAssert(upval);
 
   // Read an object from the stack as an Object.
@@ -94,7 +96,7 @@ Ret:
 }
 
 class Heap;
-META_REGISTER_CLASS(Heap);
+META_REGISTER_CLASS(Heap)
 class Heap: public Object {
 public:
   Heap() {
@@ -229,3 +231,5 @@ void MetaLuaBindClass(
   lua_setfield(L, -2, "__metaclass");
   lua_setglobal(L, T->GetName());
 }
+
+META_REGISTER_CLASS(lua_State, nullptr)

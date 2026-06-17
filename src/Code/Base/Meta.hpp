@@ -832,6 +832,66 @@ public:
   using reference       = value_type &;
   using const_reference = const value_type &;
 
+protected:
+  // Helper struct for constructing objects.
+  template<typename _Obj, bool _Abstract = std::is_abstract<_Obj>::value>
+  struct ConstructHelper {
+    static inline _Obj *Impl(void *object) {
+      new (object) _Obj;
+      return static_cast<_Obj *>(object);
+    }
+
+    static inline _Obj *Impl() {
+      static_assert(std::is_default_constructible<T>::value,
+        "T must be default-constructible");
+      return new _Obj;
+    }
+  };
+
+  template<typename _Obj>
+  struct ConstructHelper<_Obj, true> {
+    static inline _Obj *Impl(void *) {
+      SkyAssertMsg(false, "Tried to call placement new on abstract type.");
+      return nullptr;
+    }
+
+    static inline _Obj *Impl() {
+      SkyAssertMsg(false, "Tried to call new on abstract or non-default-constructible type.");
+      return nullptr;
+    }
+  };
+
+  // Helper for pointer upcast and downcast.
+  template <typename _Obj, bool _Base = std::is_base_of<Object, _Obj>::value>
+  struct CastHelper {
+    static inline void *Up(void *const &object) {
+      if (!object)
+        return nullptr;
+      // Convert to `T *` then convert to `Object *`, in order to adjust the
+      // pointer.
+      return static_cast<Object *>(static_cast<_Obj *>(object));
+    }
+
+    static inline void *Down(Object *const &object) {
+      if (!object)
+        return nullptr;
+      return static_cast<_Obj *>(object);
+    }
+  };
+
+  // If T is not a derived class of Object, return nullptr directly.
+  template<typename _Obj>
+  struct CastHelper<_Obj, false> {
+    static inline _Obj *Up(void *const &object) {
+      return nullptr;
+    }
+
+    static inline _Obj *Down(Object *const &object) {
+      return nullptr;
+    }
+  };
+
+public:
   static LPMetaClass Must_call_META_REGISTER_CLASS() {
     return nullptr;
   }
@@ -891,12 +951,7 @@ public:
   }
 
   virtual void *NewObject() const override {
-    if constexpr (!std::is_abstract_v<object_type>)
-      return new object_type;
-    else {
-      SkyAssertMsg(false, "Tried to call new on abstract or non-default-constructible type.");
-      return nullptr;
-    }
+    return ConstructHelper<object_type>::Impl();
   }
 
   virtual void DeleteObject(
@@ -909,14 +964,7 @@ public:
   virtual void *ConstructObject(
     void *object
   ) const override {
-    if constexpr (!std::is_abstract_v<object_type>)
-      new (object) object_type;
-    else {
-      SkyAssertMsg(false, "Tried to call placement new on abstract or non-default-constructible type.");
-      return nullptr;
-    }
-
-    return object;
+    return ConstructHelper<object_type>::Impl(object);
   }
 
   virtual void DestructObject(
@@ -928,21 +976,13 @@ public:
   virtual void *Upcast(
     void *const &object
   ) const override {
-    if (!object)
-      return nullptr;
-    
-    // Convert to `T *` then convert to `Object *`, in order to adjust the
-    // pointer.
-    return (Object *)(value_type)object;
+    return CastHelper<object_type>::Up(object);
   }
 
   virtual void *Downcast(
     Object *const &object
   ) const override {
-    if (!object)
-      return nullptr;
-
-    return (T *)object;
+    return CastHelper<object_type>::Down(object);
   }
 
   virtual void *ResolveMember(
