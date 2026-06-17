@@ -31,16 +31,62 @@ extern "C" {
 // [SECTION] Macros
 // ----------------------------------------------------------------------------
 
-// Declare a type.
+// Register a metadata key-value pair for a type.
+// Example:
+//   META_DATA_TYPE(CameraLensType, Enum_Type, "CameraLensType")
+#define META_DATA_TYPE(_Type, _Key, _Value) \
+static MetaData g_metaDataType_ ## _Type ## _ ## _Key = {\
+  g_metaType_ ## _Type,\
+  #_Key,\
+  _Value\
+};
+
+// Register a metadata key-value pair for a class.
+// Example:
+//   META_DATA_CLASS(EventBarn, ClearMemory, "ZERO")
+#define META_DATA_CLASS(_Class, _Key, _Value) \
+static MetaData g_metaDataClass_ ## _Class ## _ ## _Key = {\
+  g_metaClass_ ## _Class,\
+  #_Key,\
+  _Value\
+};
+
+// Register a metadata for a constant.
+// Example:
+//   META_DATA_CONSTANT(kCameraGuideZoom_None, Enum_Type, "CameraGuideZoom")
+#define META_DATA_CONSTANT(_Name, _Key, _Value) \
+static MetaData g_metaDataConstant_ ## _Name ## _ ## _Key = {\
+  g_metaConstant_ ## _Name,\
+  #_Key,\
+  _Value\
+};
+
+// Register a metadata kv pair for a member variable.
+// Example:
+//   META_DATA_MEMBER_VARIABLE(Event, autoStart, Tool_Description, "ZERO")
+#define META_DATA_MEMBER_VARIABLE(_Class, _Name, _Key, _Value) \
+static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key = {\
+  g_metaMemberVariable_ ## _Class ## _ ## _Name,\
+  #_Key,\
+  _Value\
+};
+
+// Declare a type. Place the macro in header files.
+// Example:
+//   META_DECLARE_TYPE(uint8_t)
 #define META_DECLARE_TYPE(T)\
   template<> LPCMetaType GetMetaTypeByType<T>();
 
-// Declare a class.
+// Declare a class. Place the macro in header files.
+// Example:
+//   META_DECLARE_CLASS(Heap)
 #define META_DECLARE_CLASS(T) \
   template<> LPMetaClass MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
   template<> LPCMetaClass GetMetaClassByType<T *>();
 
-// Register a type.
+// Register a type. Place the macro in cpp files.
+// Example:
+//   META_REGISTER_TYPE(Heap)
 #define META_REGISTER_TYPE(T)\
   template<>\
   LPCMetaType GetMetaTypeByType<T>() {\
@@ -48,16 +94,23 @@ extern "C" {
   }
 
 // Register a number type.
+// Example:
+//   META_REGISTER_TYPE_NUMBER(CameraGuideZoom)
 #define META_REGISTER_TYPE_NUMBER(T)\
   static MetaTypeNumber<T> g_metaType_##T{#T};\
   META_REGISTER_TYPE(T)
 
-// Register a number type.
+// Register a string type. The ExtraceCString function for the type must be
+// declared.
+// Example:
+//   META_REGISTER_TYPE_STRING(std::string)
 #define META_REGISTER_TYPE_STRING(T)\
   static MetaTypeString<T> g_metaType_##T{#T};\
   META_REGISTER_TYPE(T)
 
 // Register a class.
+// Example:
+//   META_REGISTER_CLASS(lua_State)
 #define META_REGISTER_CLASS(T, ...) \
   static MetaClassImpl<T> g_metaClass_##T{#T, ## __VA_ARGS__};\
   template<> LPMetaClass MetaClassImpl<T>::Must_call_META_REGISTER_CLASS() {\
@@ -67,9 +120,14 @@ extern "C" {
     return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
   }
 
+// Get the class id of a class.
 #define MetaClassId(T) MetaClassImpl<T>::Must_call_META_REGISTER_CLASS()->GetId()
 
 // Register a member variable.
+// Example:
+//   META_REGISTER_SIMPLE_MEMBER(lua_State, Game, lua)
+// Equivalant to:
+//   lua_State *Game::lua;
 #define META_REGISTER_SIMPLE_MEMBER(_Type, _Class, _Name) \
 static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
   #_Name,\
@@ -79,6 +137,11 @@ static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
 };
 
 // Register a member array.
+// Example:
+//   META_REGISTER_STATIC_MEMBER(TimelineNode, Timeline, timelineNodes, 128, uint16_t, timelineNodesCount)
+// Equivalant to:
+//   TimelineNode Timeline::timelineNodes[128];
+//   uint16_t Timeline::timelineNodesCount;
 #define META_REGISTER_STATIC_MEMBER(_Type, _Class, _Name, _Length, _CountType, _CountName) \
 static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
   #_Name,\
@@ -90,12 +153,26 @@ static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
   _Length\
 };
 
+// Register a constant value.
+// Example:
+//   META_REGISTER_CONSTANT(CameraGuideZoom, kCameraGuideZoom_None, kCameraGuideZoom_None)
 #define META_REGISTER_CONSTANT(_Type, _Name, _Value) \
 static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
   #_Name,\
   GetMetaTypeByType<_Type>,\
   _Value\
 };
+
+// Register an enum value (constant).
+// Example:
+//   META_REGISTER_ENUM(CameraGuideZoom, kCameraGuideZoom_None)
+#define META_REGISTER_ENUM(_Type, _Name) \
+static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
+  #_Name,\
+  GetMetaTypeByType<_Type>,\
+  _Name\
+};\
+META_DATA_CONSTANT(_Name, "Enum_Type", #_Type)
 
 // ----------------------------------------------------------------------------
 // [SECTION] Declarations
@@ -154,7 +231,8 @@ public:
   }
 
   MetaObject(
-    cstring name
+    cstring name,
+    void *aux = nullptr
   )
     : m_name(name)
   { }
@@ -169,6 +247,7 @@ public:
 
   inline cstring &GetName() { return m_name; }
   inline const cstring &GetName() const { return m_name; }
+  inline void SetFields(void *fields) { m_fields = fields; }
   inline void *GetFields() const { return m_fields; }
   inline T *GetPrev() const { return m_prev; }
 
@@ -179,6 +258,28 @@ protected:
   void *m_fields = nullptr;
   // Previous object, build a chain list for initialization.
   T *m_prev = nullptr;
+};
+
+// ----------------------------------------------------------------------------
+// [SECTION] MetaData
+// ----------------------------------------------------------------------------
+
+// Store metadata in KV pairs.
+class MetaData: public MetaObject<MetaData> {
+public:
+  MetaData(
+    MetaObject &target,
+    cstring key,
+    cstring value
+  )
+    : MetaObject<MetaData>(key, (void *)(value))
+  {
+    m_prev = (MetaData *)target.GetFields();
+    target.SetFields(this);
+  }
+
+  cstring GetKey() const { return (cstring)GetName(); }
+  cstring GetValue() const { return (cstring)GetFields(); }
 };
 
 // ----------------------------------------------------------------------------
@@ -194,7 +295,14 @@ class MetaFunction: public MetaObject<MetaFunction> {
 // ----------------------------------------------------------------------------
 
 class MetaVariable: public MetaObject<MetaVariable> {
+public:
 
+protected:
+  void *unk_1 = nullptr;
+  cstring m_sourceFile = nullptr;
+  void *m_address = nullptr;
+  PFN_RegisterType m_type = nullptr;
+  void *unk[3];
 };
 
 // ----------------------------------------------------------------------------
@@ -214,9 +322,8 @@ public:
     MetaObject<MetaConstant>::m_List() = this; 
   }
 
-  inline LPCMetaType GetType() {
-    return m_type();
-  }
+  inline const MetaData *GetMetaData() const { return scast<const MetaData *>(m_fields); }
+  inline LPCMetaType GetType() { return m_type(); }
 
 protected:
   void *unk_1 = nullptr;
@@ -238,9 +345,7 @@ public:
     *m_valuePtr = value;
   }
 
-  inline T GetValue() {
-    return *static_cast<T *>(m_valuePtr);
-  }
+  inline T GetValue() { return *scast<T *>(m_valuePtr); }
 };
 
 // ----------------------------------------------------------------------------
@@ -340,6 +445,7 @@ public:
     return { m_countAddress, m_countVbAddress, m_countVbSlot };
   }
 
+  inline const MetaData *GetMetaData() const { return scast<const MetaData *>(m_fields); }
   inline LPCMetaType GetType() const { return m_type(); }
   inline LPCMetaType GetCountType() const { return m_countType(); }
   inline LPCMetaClass GetClass() const { return m_class(); }
@@ -476,6 +582,7 @@ public:
 
   MetaType &operator=(const MetaType &) = default;
 
+  inline const MetaData *GetMetaData() const { return scast<const MetaData *>(m_fields); }
   inline LPMetaType &GetActive() { return m_self; }
   inline LPMetaType const &GetActive() const  { return m_self; }
 

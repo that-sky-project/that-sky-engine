@@ -26,9 +26,9 @@ typedef CString cstring;
 
 typedef std::string TgcString;
 
-#define rcast(T) reinterpret_cast<T>
-#define scast(T) static_cast<T>
-#define dcast(T) dynamic_cast<T>
+#define rcast reinterpret_cast
+#define scast static_cast
+#define dcast dynamic_cast
 
 #endif
 
