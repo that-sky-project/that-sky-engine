@@ -13,6 +13,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "lua\lua.vcxproj", "{
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dlmalloc", "dlmalloc\dlmalloc.vcxproj", "{CFE23793-7429-4E10-8E7B-1865CF2E5DE5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testproj", "testproj\testproj.vcxproj", "{13B342B0-6967-4B65-8CDB-348872586274}"
+	ProjectSection(ProjectDependencies) = postProject
+		{36746F61-C86E-44E6-8DE9-6484407AD6B1} = {36746F61-C86E-44E6-8DE9-6484407AD6B1}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Release|x64 = Release|x64
@@ -24,6 +29,8 @@ Global
 		{846868FC-4C2D-4959-B8FA-B55456F50394}.Release|x64.Build.0 = Release|x64
 		{CFE23793-7429-4E10-8E7B-1865CF2E5DE5}.Release|x64.ActiveCfg = Release|x64
 		{CFE23793-7429-4E10-8E7B-1865CF2E5DE5}.Release|x64.Build.0 = Release|x64
+		{13B342B0-6967-4B65-8CDB-348872586274}.Release|x64.ActiveCfg = Release|x64
+		{13B342B0-6967-4B65-8CDB-348872586274}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
