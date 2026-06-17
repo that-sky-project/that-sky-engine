@@ -239,7 +239,7 @@ public:
   }
 
   inline T GetValue() {
-    return *m_valuePtr;
+    return *static_cast<T *>(m_valuePtr);
   }
 };
 
