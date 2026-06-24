@@ -8,13 +8,13 @@
 #include <unordered_map>
 
 extern "C" {
-#include "lua.h"
-#include "lauxlib.h"
+#include <lua.h>
+#include <lauxlib.h>
 }
 
-#include "StlAllocator.hpp"
-#include "Types.h"
-#include "Assert.hpp"
+#include "Utils/StlAllocator.hpp"
+#include "Utils/Types.h"
+#include "Utils/Assert.hpp"
 
 // ----------------------------------------------------------------------------
 // [SECTION] HeaderMisc

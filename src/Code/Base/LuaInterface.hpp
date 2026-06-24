@@ -2,12 +2,12 @@
 #define __LUAINTERFACE_HPP__
 
 extern "C" {
-#include "lua.h"
-#include "lauxlib.h"
-#include "lstate.h"
+#include <lua.h>
+#include <lauxlib.h>
+#include <lstate.h>
 }
 
-#include "Meta.hpp"
+#include "Base/Meta.hpp"
 
 META_DECLARE_CLASS(lua_State)
 

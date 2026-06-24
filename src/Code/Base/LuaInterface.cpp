@@ -1,4 +1,4 @@
-#include "LuaInterface.hpp"
+#include "Base/LuaInterface.hpp"
 
 bool IsDerivedFrom(MetaClass const*, MetaClass const*) {
   return false;
