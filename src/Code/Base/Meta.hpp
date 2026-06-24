@@ -2,6 +2,7 @@
 #define __META_HPP__
 
 #include <stdint.h>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 #include <string>
@@ -178,6 +179,7 @@ META_DATA_CONSTANT(_Name, "Enum_Type", #_Type)
 // [SECTION] Declarations
 // ----------------------------------------------------------------------------
 
+class MetaData;
 class MetaFunction;
 class MetaVariable;
 class MetaMemberFunction;
@@ -187,9 +189,10 @@ class MetaClass;
 class MetaSystem;
 class Object;
 
+// FNV-1a hash for cstring.
 struct MetaStrHash {
   std::size_t operator()(
-    const char* s
+    cstring s
   ) const {
     return std::hash<std::string>{}(s);
   }
@@ -197,8 +200,8 @@ struct MetaStrHash {
 
 struct MetaStrEq {
   bool operator()(
-    const char* a,
-    const char* b
+    cstring a,
+    cstring b
   ) const {
     return strcmp(a, b) == 0;
   }
@@ -207,8 +210,10 @@ struct MetaStrEq {
 template<typename Tv>
 using MetaStrHashMap = std::unordered_map<cstring , Tv, MetaStrHash, MetaStrEq>;
 
+using LPMetaData = MetaData *;
 using LPMetaType = MetaType *;
 using LPMetaClass = MetaClass *;
+using LPCMetaData = const MetaData *;
 using LPCMetaType = const MetaType *;
 using LPCMetaClass = const MetaClass *;
 
@@ -218,12 +223,61 @@ using PFN_GetType = LPCMetaType (*)();
 using PFN_GetClass = LPCMetaClass (*)();
 
 // ----------------------------------------------------------------------------
+// [SECTION] MetaData
+// ----------------------------------------------------------------------------
+
+// Store metadata in KV pairs.
+class MetaData {
+public:
+  // Basic constructor.
+  MetaData(
+    cstring name,
+    void *aux = nullptr
+  )
+    : m_name(name)
+    , m_fields(aux)
+  { }
+
+  // Copy constructor.
+  MetaData(
+    const MetaData &src
+  )
+    : m_name(src.m_name)
+    , m_fields(src.m_fields)
+    , m_prev(src.m_prev)
+  { }
+
+  // Attach a MetaData key-value pair to a MetaObject.
+  MetaData(
+    MetaData &target,
+    cstring key,
+    cstring value
+  ) {
+    m_prev = (LPMetaData)target.m_fields;
+    target.m_fields = (void *)this;
+  }
+
+  inline cstring GetName() const { return m_name; }
+  inline void SetName(cstring name) { m_name = name; }
+  inline LPMetaData GetPrev() const { return m_prev; }
+  inline void *GetFields() const { return m_fields; }
+
+protected:
+  // Name of the object.
+  cstring m_name = nullptr;
+  // External descriptors.
+  void *m_fields = nullptr;
+  // Previous object, build a chain list for initialization.
+  MetaData *m_prev = nullptr;
+};
+
+// ----------------------------------------------------------------------------
 // [SECTION] MetaObject
 // ----------------------------------------------------------------------------
 
 // Represents an object.
 template<typename T>
-class MetaObject {
+class MetaObject: public MetaData {
 public:
   static inline T *&m_List() {
     static T *p = nullptr;
@@ -234,52 +288,32 @@ public:
     cstring name,
     void *aux = nullptr
   )
-    : m_name(name)
+    : MetaData(name, aux)
   { }
 
   MetaObject(
     const MetaObject &src
   )
-    : m_name(src.m_name)
-    , m_fields(src.m_fields)
-    , m_prev(src.m_prev)
+    : MetaData(src)
+    , unk_1(src.unk_1)
   { }
 
-  inline cstring &GetName() { return m_name; }
-  inline const cstring &GetName() const { return m_name; }
-  inline void SetFields(void *fields) { m_fields = fields; }
-  inline void *GetFields() const { return m_fields; }
-  inline T *GetPrev() const { return m_prev; }
+  // Get the next(prev) object.
+  inline T *GetPrev() const { return (T *)m_prev; }
 
-protected:
-  // Name of the object.
-  cstring m_name = nullptr;
-  // External descriptors.
-  void *m_fields = nullptr;
-  // Previous object, build a chain list for initialization.
-  T *m_prev = nullptr;
-};
-
-// ----------------------------------------------------------------------------
-// [SECTION] MetaData
-// ----------------------------------------------------------------------------
-
-// Store metadata in KV pairs.
-class MetaData: public MetaObject<MetaData> {
-public:
-  MetaData(
-    MetaObject &target,
-    cstring key,
-    cstring value
-  )
-    : MetaObject<MetaData>(key, (void *)(value))
-  {
-    m_prev = (MetaData *)target.GetFields();
-    target.SetFields(this);
+  // Get a MetaData value.
+  inline cstring GetMetaData(
+    cstring key
+  ) const {
+    for (LPCMetaData p = (LPCMetaData)m_fields; p; p = p->GetPrev())
+      if (!strcmp(p->GetName(), key))
+        return (cstring)p->GetFields();
+    return nullptr;
   }
 
-  cstring GetKey() const { return (cstring)GetName(); }
-  cstring GetValue() const { return (cstring)GetFields(); }
+protected:
+  // Unknown member, maybe for padding or alignment.
+  void *unk_1 = nullptr;
 };
 
 // ----------------------------------------------------------------------------
@@ -298,7 +332,6 @@ class MetaVariable: public MetaObject<MetaVariable> {
 public:
 
 protected:
-  void *unk_1 = nullptr;
   cstring m_sourceFile = nullptr;
   void *m_address = nullptr;
   PFN_RegisterType m_type = nullptr;
@@ -322,11 +355,9 @@ public:
     MetaObject<MetaConstant>::m_List() = this; 
   }
 
-  inline const MetaData *GetMetaData() const { return scast<const MetaData *>(m_fields); }
   inline LPCMetaType GetType() { return m_type(); }
 
 protected:
-  void *unk_1 = nullptr;
   void *m_valuePtr = nullptr;
   PFN_RegisterType m_type = nullptr;
 };
@@ -352,10 +383,47 @@ public:
 // [SECTION] MetaMemberFunction
 // ----------------------------------------------------------------------------
 
+/*
+class Variable { };
+class VoidClass { };
+
+template<typename T>
+struct MetaFunctionTraits;
+
+template<typename _Obj, typename _Ret, typename... _Args>
+struct MetaFunctionTraits<_Ret (_Obj::*)(_Args...)> {
+  using Obj = _Obj;
+  using Ret = _Ret;
+  using Args = std::tuple<_Args...>;
+  static constexpr size_t Arity = sizeof...(_Args);
+};
+
+template<typename Obj, typename Fn>
+void ApplyWrapper(
+  void (VoidClass::*fn)(void),
+  void *pObject,
+  Variable args,
+  Variable *retval,
+  u32 argCount
+) {
+  using Traits = MetaFunctionTraits<Fn>;
+  Traits::Ret;
+}
+
+template<typename Obj, typename Ret, typename ...Args>
+void Apply(
+  void (Obj::*fn)(Args...),
+  Obj *pObject,
+  Variable args,
+  Variable *retval,
+  u32 argCount
+) {
+}
+*/
+
 // Represents a member function.
 class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
 public:
-  void *unk_1;
   void *signature[3];
   void *function;
   void *unk_2;
@@ -445,7 +513,6 @@ public:
     return { m_countAddress, m_countVbAddress, m_countVbSlot };
   }
 
-  inline const MetaData *GetMetaData() const { return scast<const MetaData *>(m_fields); }
   inline LPCMetaType GetType() const { return m_type(); }
   inline LPCMetaType GetCountType() const { return m_countType(); }
   inline LPCMetaClass GetClass() const { return m_class(); }
@@ -455,7 +522,6 @@ public:
   inline bool IsDynamicArray() const { return IsArray() && !m_staticArraySize; }
 
 protected:
-  uint64_t unk_1 = 0;
   // Offset of the member variable in the object.
   int32_t m_address = 0;
   int32_t m_vbAddress = 0;
@@ -506,7 +572,6 @@ public:
     const MetaType &src
   )
     : MetaObject<MetaType>(src)
-    , unk_1(src.unk_1)
     , m_self(src.m_self)
   { }
 
@@ -582,13 +647,10 @@ public:
 
   MetaType &operator=(const MetaType &) = default;
 
-  inline const MetaData *GetMetaData() const { return scast<const MetaData *>(m_fields); }
-  inline LPMetaType &GetActive() { return m_self; }
-  inline LPMetaType const &GetActive() const  { return m_self; }
+  inline LPMetaType GetActive() { return m_self; }
+  inline void SetActive(LPMetaType p) { m_self = p; }
 
 protected:
-  // Unknown member, maybe for padding.
-  void *unk_1 = nullptr;
   // Point to currently activated copy of the type/class.
   LPMetaType m_self = this;
 };
@@ -1149,6 +1211,7 @@ LPCMetaClass GetMetaClassByType() {
   return nullptr;
 }
 
+// Get MetaClass global id from class.
 template<typename T>
 static inline int GetMetaClassIdByType() {
   return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS()->m_globalId;
@@ -1160,6 +1223,7 @@ static inline int GetMetaClassIdByType() {
 
 META_DECLARE_CLASS(Object)
 
+// Base class for all objects registered in MetaSystem.
 class Object {
 public:
   Object() {
@@ -1177,6 +1241,7 @@ public:
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
 
+// MetaSystem lookup table.
 struct MetaSystemDataContainer {
   MetaStrHashMap<LPMetaType> m_metaTypes;
   MetaStrHashMap<MetaConstant *> m_metaConstants;
@@ -1190,6 +1255,7 @@ struct MetaSystemDataContainer {
 
 META_DECLARE_CLASS(MetaSystem)
 
+// Example MetaSystem declaration.
 class MetaSystem: public Object {
 private:
   static void m_RecursiveInit(

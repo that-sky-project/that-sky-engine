@@ -374,8 +374,9 @@ void MetaSystem::Initialize() {
     strcpy(name, it->GetName());
 
     LPMetaType mt = it->Copy();
-    mt->GetName() = name;
-    mt->GetActive() = it->GetActive() = mt;
+    mt->SetName(name);
+    mt->SetActive(mt);
+    it->SetActive(mt);
 
     m_data->m_metaTypes[name] = mt;
 
