@@ -7,36 +7,39 @@
     <Filter Include="Code\Base">
       <UniqueIdentifier>{6eb3d62a-3ff3-4206-bdfd-6233e2759086}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Code\Utils">
+      <UniqueIdentifier>{29c1e190-a1b1-442f-8881-1c2547616103}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\Code\Base\Assert.cpp">
-      <Filter>Code\Base</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\Code\Base\LuaInterface.cpp">
       <Filter>Code\Base</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\Code\Base\Meta.cpp">
       <Filter>Code\Base</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\Code\Base\StlAllocator.cpp">
-      <Filter>Code\Base</Filter>
+    <ClCompile Include="..\..\..\src\Code\Utils\Assert.cpp">
+      <Filter>Code\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\Code\Utils\StlAllocator.cpp">
+      <Filter>Code\Utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\Code\Base\Assert.hpp">
-      <Filter>Code\Base</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\src\Code\Base\LuaInterface.hpp">
-      <Filter>Code\Base</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\Code\Base\Types.h">
-      <Filter>Code\Base</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\Code\Base\StlAllocator.hpp">
       <Filter>Code\Base</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\Code\Base\Meta.hpp">
       <Filter>Code\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Utils\Assert.hpp">
+      <Filter>Code\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Utils\StlAllocator.hpp">
+      <Filter>Code\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Utils\Types.h">
+      <Filter>Code\Utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
