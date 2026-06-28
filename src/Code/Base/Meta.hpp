@@ -222,6 +222,28 @@ using PFN_RegisterClass = LPMetaClass (*)();
 using PFN_GetType = LPCMetaType (*)();
 using PFN_GetClass = LPCMetaClass (*)();
 
+template<typename T> LPCMetaType GetMetaTypeByType();
+template<typename Tp> LPCMetaClass GetMetaClassByType();
+
+// Get an implmentation of MetaType.
+LPCMetaType GetMetaType();
+
+// Get an implmentation of GetMetaClass.
+LPCMetaClass GetMetaClass();
+
+// Get a MetaClass from global id.
+LPCMetaClass GetMetaClassById(
+  int globalId);
+
+// Get a MetaClass from name.
+LPCMetaClass GetMetaClassByName(
+  cstring name,
+  bool constString = false);
+
+bool IsDerivedFrom(
+  LPCMetaClass mc1,
+  LPCMetaClass mc2);
+
 // ----------------------------------------------------------------------------
 // [SECTION] MetaData
 // ----------------------------------------------------------------------------
@@ -390,12 +412,12 @@ class VoidClass { };
 template<typename T>
 struct MetaFunctionTraits;
 
-template<typename _Obj, typename _Ret, typename... _Args>
-struct MetaFunctionTraits<_Ret (_Obj::*)(_Args...)> {
-  using Obj = _Obj;
-  using Ret = _Ret;
-  using Args = std::tuple<_Args...>;
-  static constexpr size_t Arity = sizeof...(_Args);
+template<typename Class, typename Ret, typename ...Args>
+struct MetaFunctionTraits<Ret (Class::*)(Args...)> {
+  using class_type = Class;
+  using return_type = Ret;
+  using args = std::tuple<Args...>;
+  static constexpr size_t arg_count = sizeof...(Args);
 };
 
 template<typename Obj, typename Fn>
@@ -421,16 +443,71 @@ void Apply(
 }
 */
 
+class FunctionSignature {
+public:
+  FunctionSignature() = default;
+
+  template<typename Class, typename Ret, typename ...Args>
+  void Initialize(Ret (Class::*)(Args...)) {
+    static constexpr std::array<LPCMetaType, sizeof...(Args)> args = {
+      GetMetaTypeByType<Args>()...
+    };
+
+    m_ret = GetMetaTypeByType<Ret>();
+    m_args = args.data();
+    m_argCount = sizeof...(Args);
+  }
+
+  template<typename Class, typename ...Args>
+  void Initialize(void (Class::*)(Args...)) {
+    static std::array<LPCMetaType, sizeof...(Args)> args = {
+      GetMetaTypeByType<Args>()...
+    };
+    m_ret = GetMetaType();
+    m_args = args.data();
+    m_argCount = sizeof...(Args);
+  }
+
+protected:
+  LPCMetaType m_ret = nullptr;
+  const LPCMetaType *m_args = nullptr;
+  int m_argCount = 0;
+};
+
+template<typename Fn>
+void InitializeFunctionSignature(
+  FunctionSignature *sig
+) {
+  sig->Initialize(Fn());
+}
+
 // Represents a member function.
 class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
 public:
-  void *signature[3];
-  void *function;
-  void *unk_2;
-  int unk_3;
-  void (*applyWrapper)();
-  void (*initSignature)(void *);
-  LPCMetaClass (*getType)();
+  using PFN_InitFunctionSignature = void (*)(FunctionSignature *);
+
+  MetaMemberFunction(
+    cstring name
+  )
+    : MetaObject<MetaMemberFunction>(name)
+  {
+    m_prev = MetaObject<MetaMemberFunction>::m_List();
+    MetaObject<MetaMemberFunction>::m_List() = this;
+  }
+
+protected:
+  void *signature[3] = {nullptr};
+  void *function = nullptr;
+  void *unk_2 = nullptr;
+  int unk_3 = 0;
+  void (*applyWrapper)() = nullptr;
+  PFN_InitFunctionSignature m_initSignature = nullptr;
+  PFN_GetType m_type = nullptr;
+};
+
+class MetaMemberFunctionImpl: public MetaMemberFunction {
+public:
+
 };
 
 // ----------------------------------------------------------------------------
@@ -1179,25 +1256,6 @@ public:
 // ----------------------------------------------------------------------------
 // [SECTION] Functions
 // ----------------------------------------------------------------------------
-
-// Get an implmentation of MetaType.
-LPCMetaType GetMetaType();
-
-// Get an implmentation of GetMetaClass.
-LPCMetaClass GetMetaClass();
-
-// Get a MetaClass from global id.
-LPCMetaClass GetMetaClassById(
-  int globalId);
-
-// Get a MetaClass from name.
-LPCMetaClass GetMetaClassByName(
-  cstring name,
-  bool constString = false);
-
-bool IsDerivedFrom(
-  LPCMetaClass mc1,
-  LPCMetaClass mc2);
 
 // Get MetaType from type name.
 template<typename T>
