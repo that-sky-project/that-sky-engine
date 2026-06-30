@@ -2,6 +2,7 @@
 #define __META_HPP__
 
 #include <stdint.h>
+#include <array>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -26,6 +27,12 @@ extern "C" {
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+
+#if defined(_MSC_VER)
+// Force /vmg member function pointers.
+// NOTE: The sizeof() expression of Intellisense is usually incorrect.
+#pragma pointers_to_members(full_generality, virtual_inheritance)
 #endif
 
 // ----------------------------------------------------------------------------
@@ -76,13 +83,24 @@ static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key =
 // Example:
 //   META_DECLARE_TYPE(uint8_t)
 #define META_DECLARE_TYPE(T)\
-  template<> LPCMetaType GetMetaTypeByType<T>();
+  template<> LPCMetaType GetMetaTypeByType<T>();\
+  namespace Adl {\
+    LPCMetaType GetMetaTypeImpl(const T &, Force);\
+  }
 
-// Declare a class. Place the macro in header files.
+// Declare a class. Place the macro in header files, and must before the declaration
+// of the class:
+//
+// Because MSVC calculates the size of a member function pointer by recording whether
+// the type is complete when it first encounters the class declaration, if this macro
+// is placed after the class's complete declaration, the calculated size of
+// MetaMemberFunction may not match expectations.
+//
 // Example:
 //   META_DECLARE_CLASS(Heap)
 #define META_DECLARE_CLASS(T) \
   template<> LPMetaClass MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+  template<> LPCMetaType GetMetaTypeByType<T *>();\
   template<> LPCMetaClass GetMetaClassByType<T *>();
 
 // Register a type. Place the macro in cpp files.
@@ -92,6 +110,11 @@ static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key =
   template<>\
   LPCMetaType GetMetaTypeByType<T>() {\
     return g_metaType_##T.GetActive();\
+  }\
+  namespace Adl {\
+    LPCMetaType GetMetaTypeImpl(const T &, Force) {\
+      return g_metaType_##T.GetActive();\
+    }\
   }
 
 // Register a number type.
@@ -119,6 +142,9 @@ static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key =
   }\
   template<> LPCMetaClass GetMetaClassByType<T *>() {\
     return MetaClassImpl<T>::Must_call_META_REGISTER_CLASS();\
+  }\
+  template<> LPCMetaType GetMetaTypeByType<T *>() {\
+    return g_metaClass_##T.GetActive();\
   }
 
 // Get the class id of a class.
@@ -130,12 +156,12 @@ static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key =
 // Equivalant to:
 //   lua_State *Game::lua;
 #define META_REGISTER_SIMPLE_MEMBER(_Type, _Class, _Name) \
-static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
-  #_Name,\
-  (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
-  (int32_t)offsetof(_Class, _Name),\
-  (PFN_GetType)GetMetaTypeByType<_Type>\
-};
+  static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
+    #_Name,\
+    (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
+    (int32_t)offsetof(_Class, _Name),\
+    (PFN_GetType)GetMetaTypeByType<_Type>\
+  };
 
 // Register a member array.
 // Example:
@@ -144,36 +170,36 @@ static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
 //   TimelineNode Timeline::timelineNodes[128];
 //   uint16_t Timeline::timelineNodesCount;
 #define META_REGISTER_STATIC_MEMBER(_Type, _Class, _Name, _Length, _CountType, _CountName) \
-static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
-  #_Name,\
-  (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
-  (int32_t)offsetof(_Class, _Name),\
-  (PFN_GetType)GetMetaTypeByType<_Type>,\
-  (int32_t)offsetof(_Class, _CountName),\
-  (PFN_GetType)GetMetaTypeByType<_CountType>,\
-  _Length\
-};
+  static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
+    #_Name,\
+    (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
+    (int32_t)offsetof(_Class, _Name),\
+    (PFN_GetType)GetMetaTypeByType<_Type>,\
+    (int32_t)offsetof(_Class, _CountName),\
+    (PFN_GetType)GetMetaTypeByType<_CountType>,\
+    _Length\
+  };
 
 // Register a constant value.
 // Example:
 //   META_REGISTER_CONSTANT(CameraGuideZoom, kCameraGuideZoom_None, kCameraGuideZoom_None)
 #define META_REGISTER_CONSTANT(_Type, _Name, _Value) \
-static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
-  #_Name,\
-  GetMetaTypeByType<_Type>,\
-  _Value\
-};
+  static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
+    #_Name,\
+    GetMetaTypeByType<_Type>,\
+    _Value\
+  };
 
 // Register an enum value (constant).
 // Example:
 //   META_REGISTER_ENUM(CameraGuideZoom, kCameraGuideZoom_None)
 #define META_REGISTER_ENUM(_Type, _Name) \
-static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
-  #_Name,\
-  GetMetaTypeByType<_Type>,\
-  _Name\
-};\
-META_DATA_CONSTANT(_Name, "Enum_Type", #_Type)
+  static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
+    #_Name,\
+    GetMetaTypeByType<_Type>,\
+    _Name\
+  };\
+  META_DATA_CONSTANT(_Name, "Enum_Type", #_Type)
 
 // ----------------------------------------------------------------------------
 // [SECTION] Declarations
@@ -184,6 +210,7 @@ class MetaFunction;
 class MetaVariable;
 class MetaMemberFunction;
 class MetaMemberVariable;
+class MetaConstant;
 class MetaType;
 class MetaClass;
 class MetaSystem;
@@ -221,6 +248,30 @@ using PFN_RegisterType = LPMetaType (*)();
 using PFN_RegisterClass = LPMetaClass (*)();
 using PFN_GetType = LPCMetaType (*)();
 using PFN_GetClass = LPCMetaClass (*)();
+
+// Argument-dependent lookup.
+namespace Adl {
+struct Force {};
+}
+
+// Type-erased class.
+class VoidClass { };
+
+// Type-erased variable storage.
+struct Variable {
+  // Raw value.
+  void *value;
+  // MetaType.
+  LPCMetaType type;
+};
+
+template<typename Class, typename Fn>
+void ApplyWrapper(
+  void (VoidClass::*fn)(void),
+  void *pObject,
+  Variable *retval,
+  Variable *args,
+  u32 argCount);
 
 template<typename T> LPCMetaType GetMetaTypeByType();
 template<typename Tp> LPCMetaClass GetMetaClassByType();
@@ -364,6 +415,7 @@ protected:
 // [SECTION] MetaConstant
 // ----------------------------------------------------------------------------
 
+// Global constant.
 class MetaConstant: public MetaObject<MetaConstant> {
 public:
   MetaConstant(
@@ -384,6 +436,7 @@ protected:
   PFN_RegisterType m_type = nullptr;
 };
 
+// Global constant implement.
 template<typename T>
 class MetaConstantImpl: public MetaConstant {
 public:
@@ -407,7 +460,6 @@ public:
 
 /*
 class Variable { };
-class VoidClass { };
 
 template<typename T>
 struct MetaFunctionTraits;
@@ -443,6 +495,7 @@ void Apply(
 }
 */
 
+// Function signature storage.
 class FunctionSignature {
 public:
   FunctionSignature() = default;
@@ -474,6 +527,7 @@ protected:
   int m_argCount = 0;
 };
 
+// Templated function signature.
 template<typename Fn>
 void InitializeFunctionSignature(
   FunctionSignature *sig
@@ -484,7 +538,10 @@ void InitializeFunctionSignature(
 // Represents a member function.
 class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
 public:
-  using PFN_InitFunctionSignature = void (*)(FunctionSignature *);
+  using PFN_InitFunctionSignature = void (*)(
+    FunctionSignature *);
+  using PFN_ApplyWrapper = void (*)(
+    void (VoidClass::*)(void), void *, Variable *, Variable *, u32);
 
   MetaMemberFunction(
     cstring name
@@ -494,20 +551,33 @@ public:
     m_prev = MetaObject<MetaMemberFunction>::m_List();
     MetaObject<MetaMemberFunction>::m_List() = this;
   }
-
-protected:
-  void *signature[3] = {nullptr};
-  void *function = nullptr;
-  void *unk_2 = nullptr;
-  int unk_3 = 0;
-  void (*applyWrapper)() = nullptr;
-  PFN_InitFunctionSignature m_initSignature = nullptr;
-  PFN_GetType m_type = nullptr;
 };
 
+template<typename Class, typename Ret, typename ...Args>
 class MetaMemberFunctionImpl: public MetaMemberFunction {
 public:
+  // The registered member function must not be a const function.
+  using PFN_Member = Ret (Class::*)(Args...);
 
+  MetaMemberFunctionImpl(
+    cstring name,
+    PFN_Member member
+  )
+    : MetaMemberFunction(name)
+    , m_function(member)
+  { }
+
+protected:
+  // Function signature.
+  FunctionSignature m_signature = {};
+  // Registered function pointer.
+  PFN_Member m_function = {};
+  // Apply wrapper.
+  PFN_ApplyWrapper m_applyWrapper = ApplyWrapper<Class, PFN_Member>;
+  // Function signature initializer.
+  PFN_InitFunctionSignature m_initSignature = InitializeFunctionSignature<PFN_Member>;
+  // The class which the member function from.
+  PFN_GetClass m_class = GetMetaClassByType<Class *>;
 };
 
 // ----------------------------------------------------------------------------
@@ -1257,6 +1327,105 @@ public:
 // [SECTION] Functions
 // ----------------------------------------------------------------------------
 
+// Convert one type-erased Variable into the concrete parameter type Arg and
+// return it by value, so the result can be dropped straight into a call's
+// argument list (see ApplyImpl / ApplyVoidImpl).
+template<typename Arg>
+inline Arg ConvertArg(
+  const Variable &v
+) {
+  // Uninitialised local matching the disassembly's bare stack slot; DynamicCast
+  // writes the whole value before it is read.
+  Arg result;
+  GetMetaTypeByType<Arg>()->DynamicCast(&result, v.value, v.type);
+  return result;
+}
+
+// Invoke a non-void member function through type-erased arguments, then convert
+// its return value into the caller-supplied retval slot. Index-pack worker.
+template<typename Class, typename Ret, typename ...Args, size_t ...I>
+inline void ApplyImpl(
+  Ret (Class::*fn)(Args...),
+  Class *pObject,
+  Variable *retval,
+  Variable *args,
+  std::index_sequence<I...>
+) {
+  // Call the member function on the object and keep its raw return value.
+  // The arguments are converted inline as part of the call expression.
+  Ret ret = (pObject->*fn)(ConvertArg<Args>(args[I])...);
+
+  // Marshal the raw return value into the type the caller asked for.
+  retval->type->DynamicCast(retval->value, &ret, GetMetaTypeByType<Ret>());
+}
+
+// Invoke a void member function through type-erased arguments; report an empty
+// result in retval. Index-pack worker.
+template<typename Class, typename ...Args, size_t ...I>
+inline void ApplyVoidImpl(
+  void (Class::*fn)(Args...),
+  Class *pObject,
+  Variable *retval,
+  Variable *args,
+  std::index_sequence<I...>
+) {
+  // A void function produces no value: null payload + the "void" metatype.
+  retval->value = nullptr;
+  retval->type = GetMetaType();
+
+  // Call the member function; arguments are converted inline, nothing to
+  // marshal back.
+  (pObject->*fn)(ConvertArg<Args>(args[I])...);
+}
+
+// Public entry point for non-void member functions: check arity, then dispatch.
+template<typename Class, typename Ret, typename ...Args>
+void Apply(
+  Ret (Class::*fn)(Args...),
+  Class *pObject,
+  Variable *retval,
+  Variable *args,
+  u32 argCount
+) {
+  // The supplied argument count must match the function's arity.
+  SkyAssert(sizeof...(Args) == argCount);
+  ApplyImpl(fn, pObject, retval, args, std::index_sequence_for<Args...>{});
+}
+
+// Public entry point for void member functions: check arity, then dispatch.
+template<typename Class, typename ...Args>
+void Apply(
+  void (Class::*fn)(Args...),
+  Class *pObject,
+  Variable *retval,
+  Variable *args,
+  u32 argCount
+) {
+  // The supplied argument count must match the function's arity.
+  SkyAssert(sizeof...(Args) == argCount);
+  ApplyVoidImpl(fn, pObject, retval, args, std::index_sequence_for<Args...>{});
+}
+
+// Type-restoring trampoline stored in MetaMemberFunctionImpl::m_applyWrapper.
+// Recovers the concrete member-function type from the type-erased pointers the
+// dispatcher passes, then forwards to the matching Apply overload.
+template<typename Class, typename Fn>
+void ApplyWrapper(
+  void (VoidClass::*fn)(void),
+  void *pObject,
+  Variable *retval,
+  Variable *args,
+  u32 argCount
+) {
+  // Undo the erasure performed by the dispatcher and call the real function.
+  Apply(
+    rcast<Fn>(fn),
+    scast<Class *>(pObject),
+    retval,
+    args,
+    argCount);
+}
+
 // Get MetaType from type name.
 template<typename T>
 LPCMetaType GetMetaTypeByType() {
@@ -1284,14 +1453,13 @@ META_DECLARE_CLASS(Object)
 // Base class for all objects registered in MetaSystem.
 class Object {
 public:
-  Object() {
-    m_metaClassId = MetaClassId(Object);
-  }
-
+  Object(): m_metaClassId(MetaClassId(Object)) { }
   Object(int metaClassId): m_metaClassId(metaClassId) { }
-
   ~Object() = default;
 
+  inline int GetMetaClassId() { return m_metaClassId; }
+
+protected:
   int m_metaClassId;
 };
 

@@ -178,7 +178,7 @@ void MetaClass::DynamicCast(
   //
   // So we can, and we need to extract the metaclass id to get the correct address
   // of the object.
-  LPCMetaClass pObjectClass = GetMetaClassById(pObject->m_metaClassId);
+  LPCMetaClass pObjectClass = GetMetaClassById(pObject->GetMetaClassId());
   if (pObjectClass->AsClass() == this) {
     // The actual type of the source object is the current type.
     // Downcast to adjust pointer.
@@ -228,7 +228,7 @@ void MetaClass::WriteType(
 
   Object *pBase = (Object *)Upcast(pObject);
   if (pBase)
-    result = GetMetaClassById(pBase->m_metaClassId)->Downcast(pBase);
+    result = GetMetaClassById(pBase->GetMetaClassId())->Downcast(pBase);
   else
     result = pObject;
 
@@ -424,3 +424,8 @@ LPCMetaClass GetMetaClassByName(
 
   return it->second;
 }
+
+MetaMemberFunctionImpl<MetaData, void, cstring> test = {
+  "test",
+  &MetaData::SetName
+};
