@@ -43,41 +43,49 @@ extern "C" {
 // Example:
 //   META_DATA_TYPE(CameraLensType, Enum_Type, "CameraLensType")
 #define META_DATA_TYPE(_Type, _Key, _Value) \
-static MetaData g_metaDataType_ ## _Type ## _ ## _Key = {\
-  g_metaType_ ## _Type,\
-  #_Key,\
-  _Value\
-};
+  static MetaData g_metaDataType_ ## _Type ## _ ## _Key = {\
+    g_metaType_ ## _Type,\
+    #_Key,\
+    _Value\
+  };
 
 // Register a metadata key-value pair for a class.
 // Example:
 //   META_DATA_CLASS(EventBarn, ClearMemory, "ZERO")
 #define META_DATA_CLASS(_Class, _Key, _Value) \
-static MetaData g_metaDataClass_ ## _Class ## _ ## _Key = {\
-  g_metaClass_ ## _Class,\
-  #_Key,\
-  _Value\
-};
+  static MetaData g_metaDataClass_ ## _Class ## _ ## _Key = {\
+    g_metaClass_ ## _Class,\
+    #_Key,\
+    _Value\
+  };
 
 // Register a metadata for a constant.
 // Example:
 //   META_DATA_CONSTANT(kCameraGuideZoom_None, Enum_Type, "CameraGuideZoom")
 #define META_DATA_CONSTANT(_Name, _Key, _Value) \
-static MetaData g_metaDataConstant_ ## _Name ## _ ## _Key = {\
-  g_metaConstant_ ## _Name,\
-  #_Key,\
-  _Value\
-};
+  static MetaData g_metaDataConstant_ ## _Name ## _ ## _Key = {\
+    g_metaConstant_ ## _Name,\
+    #_Key,\
+    _Value\
+  };
 
 // Register a metadata kv pair for a member variable.
 // Example:
 //   META_DATA_MEMBER_VARIABLE(Event, autoStart, Tool_Description, "ZERO")
 #define META_DATA_MEMBER_VARIABLE(_Class, _Name, _Key, _Value) \
-static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key = {\
-  g_metaMemberVariable_ ## _Class ## _ ## _Name,\
-  #_Key,\
-  _Value\
-};
+  static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key = {\
+    g_metaMemberVariable_ ## _Class ## _ ## _Name,\
+    #_Key,\
+    _Value\
+  };
+
+// Register a metadata kv pair for a member function.
+#define META_DATA_MEMBER_FUNCTION(_Class, _Name, _Key, _Value) \
+  static MetaData g_metaDataMemberFunction_ ## _Class ## _ ## _Name ## _ ## _Key = {\
+    g_metaMemberFunction_ ## _Class ## _ ## _Name,\
+    #_Key,\
+    _Value\
+  };
 
 // Declare a type. Place the macro in header files.
 // Example:
@@ -178,6 +186,15 @@ static MetaData g_metaDataMemberVariable_ ## _Class ## _ ## _Name ## _ ## _Key =
     (int32_t)offsetof(_Class, _CountName),\
     (PFN_GetType)GetMetaTypeByType<_CountType>,\
     _Length\
+  };
+
+// Register a member function.
+// Example:
+//   META_REGISTER_FUNCTION_MEMBER(Event, Start)
+#define META_REGISTER_FUNCTION_MEMBER(_Class, _Name) \
+  static MetaMemberFunctionImpl<_Class, decltype(&_Class::_Name)> g_metaMemberFunction_ ## _Class ## _Name = {\
+    #_Name,\
+    &_Class::_Name\
   };
 
 // Register a constant value.
@@ -458,43 +475,6 @@ public:
 // [SECTION] MetaMemberFunction
 // ----------------------------------------------------------------------------
 
-/*
-class Variable { };
-
-template<typename T>
-struct MetaFunctionTraits;
-
-template<typename Class, typename Ret, typename ...Args>
-struct MetaFunctionTraits<Ret (Class::*)(Args...)> {
-  using class_type = Class;
-  using return_type = Ret;
-  using args = std::tuple<Args...>;
-  static constexpr size_t arg_count = sizeof...(Args);
-};
-
-template<typename Obj, typename Fn>
-void ApplyWrapper(
-  void (VoidClass::*fn)(void),
-  void *pObject,
-  Variable args,
-  Variable *retval,
-  u32 argCount
-) {
-  using Traits = MetaFunctionTraits<Fn>;
-  Traits::Ret;
-}
-
-template<typename Obj, typename Ret, typename ...Args>
-void Apply(
-  void (Obj::*fn)(Args...),
-  Obj *pObject,
-  Variable args,
-  Variable *retval,
-  u32 argCount
-) {
-}
-*/
-
 // Function signature storage.
 class FunctionSignature {
 public:
@@ -502,7 +482,7 @@ public:
 
   template<typename Class, typename Ret, typename ...Args>
   void Initialize(Ret (Class::*)(Args...)) {
-    static constexpr std::array<LPCMetaType, sizeof...(Args)> args = {
+    static std::array<LPCMetaType, sizeof...(Args)> args = {
       GetMetaTypeByType<Args>()...
     };
 
@@ -553,8 +533,11 @@ public:
   }
 };
 
+template<typename Class, typename Fn>
+class MetaMemberFunctionImpl;
+
 template<typename Class, typename Ret, typename ...Args>
-class MetaMemberFunctionImpl: public MetaMemberFunction {
+class MetaMemberFunctionImpl<Class, Ret (Class::*)(Args...)>: public MetaMemberFunction {
 public:
   // The registered member function must not be a const function.
   using PFN_Member = Ret (Class::*)(Args...);

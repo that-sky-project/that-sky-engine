@@ -424,8 +424,3 @@ LPCMetaClass GetMetaClassByName(
 
   return it->second;
 }
-
-MetaMemberFunctionImpl<MetaData, void, cstring> test = {
-  "test",
-  &MetaData::SetName
-};
