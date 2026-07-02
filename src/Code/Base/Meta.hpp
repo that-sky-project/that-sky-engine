@@ -192,7 +192,8 @@ extern "C" {
 // Example:
 //   META_REGISTER_FUNCTION_MEMBER(Event, Start)
 #define META_REGISTER_FUNCTION_MEMBER(_Class, _Name) \
-  static MetaMemberFunctionImpl<_Class, decltype(&_Class::_Name)> g_metaMemberFunction_ ## _Class ## _Name = {\
+  static MetaMemberFunctionImpl<_Class, decltype(&_Class::_Name)>\
+  g_metaMemberFunction_ ## _Class ## _ ## _Name = {\
     #_Name,\
     &_Class::_Name\
   };
@@ -446,7 +447,7 @@ public:
     MetaObject<MetaConstant>::m_List() = this; 
   }
 
-  inline LPCMetaType GetType() { return m_type(); }
+  inline LPCMetaType GetType() const { return m_type(); }
 
 protected:
   void *m_valuePtr = nullptr;
@@ -468,7 +469,7 @@ public:
     *m_valuePtr = value;
   }
 
-  inline T GetValue() { return *scast<T *>(m_valuePtr); }
+  inline T GetValue() const { return *scast<T *>(m_valuePtr); }
 };
 
 // ----------------------------------------------------------------------------
@@ -517,50 +518,73 @@ void InitializeFunctionSignature(
 
 // Represents a member function.
 class MetaMemberFunction: public MetaObject<MetaMemberFunction> {
-public:
+protected:
+  using PFN_VoidMember = void (VoidClass::*)(void);
   using PFN_InitFunctionSignature = void (*)(
     FunctionSignature *);
   using PFN_ApplyWrapper = void (*)(
     void (VoidClass::*)(void), void *, Variable *, Variable *, u32);
 
+  // Hidden full constructor.
   MetaMemberFunction(
-    cstring name
+    cstring name,
+    PFN_VoidMember member,
+    PFN_InitFunctionSignature init,
+    PFN_ApplyWrapper apply,
+    PFN_GetClass clazz
   )
     : MetaObject<MetaMemberFunction>(name)
+    , m_function(member)
+    , m_initSignature(init)
+    , m_applyWrapper(apply)
+    , m_class(clazz)
   {
     m_prev = MetaObject<MetaMemberFunction>::m_List();
     MetaObject<MetaMemberFunction>::m_List() = this;
   }
-};
 
-template<typename Class, typename Fn>
-class MetaMemberFunctionImpl;
-
-template<typename Class, typename Ret, typename ...Args>
-class MetaMemberFunctionImpl<Class, Ret (Class::*)(Args...)>: public MetaMemberFunction {
 public:
-  // The registered member function must not be a const function.
-  using PFN_Member = Ret (Class::*)(Args...);
+  explicit MetaMemberFunction(
+    const MetaMemberFunction &src) = default;
 
-  MetaMemberFunctionImpl(
-    cstring name,
-    PFN_Member member
-  )
-    : MetaMemberFunction(name)
-    , m_function(member)
-  { }
+  inline void Initialize() { m_initSignature(&m_signature); }
+  inline LPCMetaClass GetClass() const { return m_class(); }
 
 protected:
   // Function signature.
   FunctionSignature m_signature = {};
   // Registered function pointer.
-  PFN_Member m_function = {};
+  PFN_VoidMember m_function = {};
   // Apply wrapper.
-  PFN_ApplyWrapper m_applyWrapper = ApplyWrapper<Class, PFN_Member>;
+  PFN_ApplyWrapper m_applyWrapper = nullptr;
   // Function signature initializer.
-  PFN_InitFunctionSignature m_initSignature = InitializeFunctionSignature<PFN_Member>;
+  PFN_InitFunctionSignature m_initSignature = nullptr;
   // The class which the member function from.
-  PFN_GetClass m_class = GetMetaClassByType<Class *>;
+  PFN_GetClass m_class = nullptr;
+};
+
+template<typename Class, typename Fn>
+class MetaMemberFunctionImpl;
+
+// Templated class stores the actual type.
+template<typename Class, typename Ret, typename ...Args>
+class MetaMemberFunctionImpl<Class, Ret (Class::*)(Args...)>: public MetaMemberFunction {
+protected:
+  // The registered member function must not be a const function.
+  using PFN_Member = Ret (Class::*)(Args...);
+
+public:
+  MetaMemberFunctionImpl(
+    cstring name,
+    PFN_Member member
+  )
+    : MetaMemberFunction(
+      name,
+      rcast<PFN_VoidMember>(member),
+      InitializeFunctionSignature<PFN_Member>,
+      ApplyWrapper<Class, PFN_Member>,
+      GetMetaClassByType<Class *>)
+  { }
 };
 
 // ----------------------------------------------------------------------------
@@ -992,9 +1016,9 @@ cstring MetaTypeString<TgcString>::ExtractCString(
 struct MetaDataContainer {
   // Member variables of the object.
   MetaStrHashMap<MetaMemberVariable *> m_variables = {};
+  std::unordered_map<cstring, void *> unk_2 = {};
   // Member functions of the object.
   MetaStrHashMap<MetaMemberFunction *> m_functions = {};
-  std::unordered_map<cstring, void *> unk_3 = {};
   std::unordered_map<cstring, void *> unk_4 = {};
   std::unordered_map<cstring, void *> unk_5 = {};
 };
@@ -1440,7 +1464,7 @@ public:
   Object(int metaClassId): m_metaClassId(metaClassId) { }
   ~Object() = default;
 
-  inline int GetMetaClassId() { return m_metaClassId; }
+  inline int GetMetaClassId() const { return m_metaClassId; }
 
 protected:
   int m_metaClassId;
