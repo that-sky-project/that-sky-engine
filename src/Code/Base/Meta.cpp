@@ -369,6 +369,7 @@ void MetaSystem::Initialize() {
 
   m_data = new MetaSystemDataContainer();
 
+  // Copy metatypes.
   for (auto it = MetaObject<MetaType>::m_List(); it; it = it->GetPrev()) {
     char *name = new char[strlen(it->GetName()) + 1];
     strcpy(name, it->GetName());
@@ -386,6 +387,7 @@ void MetaSystem::Initialize() {
     m_data->m_metaClasses[name] = (LPMetaClass )mt;
   }
 
+  // Store metaclasses.
   for (int i = 0; i < kMaxClasses; i++) {
     m_classes[i] = GetMetaType()->AsClass();
   }
@@ -393,9 +395,21 @@ void MetaSystem::Initialize() {
   int topoOrder = 0
     , globalId = 0;
   
+  // Initialize metaclasses.
   for (auto &it: m_data->m_metaClasses) {
     m_RecursiveInit(it.second, &globalId, &topoOrder);
     m_classes[it.second->m_globalId] = it.second;
+  }
+
+  // Initialize metamemberfunctons.
+  for (auto it = MetaObject<MetaMemberFunction>::m_List(); it; it = it->GetPrev()) {
+    char *name = new char[strlen(it->GetName()) + 1];
+    strcpy(name, it->GetName());
+
+    MetaMemberFunction *mf = new MetaMemberFunction(*it);
+    mf->SetName(name);
+    mf->Initialize();
+    mf->GetClass()->m_metaDataContainer->m_functions[name] = mf;
   }
 
   m_metaClassId = MetaClassImpl<MetaSystem>::Must_call_META_REGISTER_CLASS()->m_globalId;

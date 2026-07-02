@@ -1481,9 +1481,9 @@ struct MetaSystemDataContainer {
   MetaStrHashMap<MetaVariable *> m_metaVariables;
   MetaStrHashMap<MetaFunction *> m_metaFunctions;
   MetaStrHashMap<LPMetaClass> m_metaClasses;
-  std::unordered_map<cstring , void *> unk_6;
-  std::unordered_map<cstring , void *> unk_7;
-  std::unordered_map<cstring , void *> unk_8;
+  std::unordered_map<cstring, void *> unk_6;
+  std::unordered_map<cstring, void *> unk_7;
+  std::unordered_map<cstring, void *> unk_8;
 };
 
 META_DECLARE_CLASS(MetaSystem)
@@ -1505,6 +1505,9 @@ public:
     , m_classes()
   { }
 
+  // This initialize function is only as an example. In most cases, you need to
+  // write your own MetaSystem and MetaSystem::Initialize to apply to the game's
+  // existing MetaSystem.
   void Initialize();
 
   MetaSystemDataContainer *m_data;
