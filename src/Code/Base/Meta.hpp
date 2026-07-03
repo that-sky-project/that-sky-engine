@@ -160,32 +160,26 @@ extern "C" {
 
 // Register a member variable.
 // Example:
-//   META_REGISTER_SIMPLE_MEMBER(lua_State, Game, lua)
-// Equivalant to:
-//   lua_State *Game::lua;
-#define META_REGISTER_SIMPLE_MEMBER(_Type, _Class, _Name) \
+//   META_REGISTER_STATIC_MEMBER(Event, autoStart)
+// Reference to:
+//   bool Event::autoStart;
+#define META_REGISTER_SIMPLE_MEMBER(_Class, _Name) \
   static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
     #_Name,\
-    (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
-    (int32_t)offsetof(_Class, _Name),\
-    (PFN_GetType)GetMetaTypeByType<_Type>\
+    &_Class::_Name\
   };
 
 // Register a member array.
 // Example:
-//   META_REGISTER_STATIC_MEMBER(TimelineNode, Timeline, timelineNodes, 128, uint16_t, timelineNodesCount)
-// Equivalant to:
+//   META_REGISTER_STATIC_MEMBER(Timeline, timelineNodes, timelineNodesCount)
+// Reference to:
 //   TimelineNode Timeline::timelineNodes[128];
 //   uint16_t Timeline::timelineNodesCount;
-#define META_REGISTER_STATIC_MEMBER(_Type, _Class, _Name, _Length, _CountType, _CountName) \
-  static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
+#define META_REGISTER_ARRAY_MEMBER(_Class, _Name, _CountName) \
+  static MetaMemberFunction g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
     #_Name,\
-    (PFN_GetClass)MetaClassImpl<_Class>::Must_call_META_REGISTER_CLASS,\
-    (int32_t)offsetof(_Class, _Name),\
-    (PFN_GetType)GetMetaTypeByType<_Type>,\
-    (int32_t)offsetof(_Class, _CountName),\
-    (PFN_GetType)GetMetaTypeByType<_CountType>,\
-    _Length\
+    &_Class::_Name,\
+    &_Class::_CountName\
   };
 
 // Register a member function.
@@ -596,6 +590,8 @@ public:
     Type Class::*member
   )
     : MetaObject<MetaMemberVariable>(name)
+    , m_type(GetMetaTypeByType<Type>)
+    , m_class(GetMetaClassByType<Class *>)
     , m_address(rcast<PMember>(member))
   {
     ChainList();
@@ -609,6 +605,8 @@ public:
     CountType Class::*count
   )
     : MetaObject<MetaMemberVariable>(name)
+    , m_type(GetMetaTypeByType<Type>)
+    , m_class(GetMetaClassByType<Class *>)
     , m_address(rcast<PMember>(member))
     , m_countAddress(rcast<PMember>(count))
   {
@@ -623,6 +621,8 @@ public:
     CountType Class::*count
   )
     : MetaObject<MetaMemberVariable>(name)
+    , m_type(GetMetaTypeByType<Type>)
+    , m_class(GetMetaClassByType<Class *>)
     , m_address(rcast<PMember>(member))
     , m_countAddress(rcast<PMember>(count))
     , m_staticArraySize(N)
@@ -630,8 +630,29 @@ public:
     ChainList();
   }
 
+  // Allow explicit copy,
+  explicit MetaMemberVariable(
+    const MetaMemberVariable &) = default;
+
+  // but cannot move or copy with `=`.
+  const MetaMemberVariable &operator=(
+    const MetaMemberVariable &) = delete;
+  MetaMemberVariable(
+    const MetaMemberVariable &&) = delete;
+  const MetaMemberVariable &operator=(
+    const MetaMemberVariable &&) = delete;
+
   // Get the count of a member array, from an object.
   inline size_t Count(void *pObj) const;
+
+  // Get the original member pointer.
+  // WARN: The function below is not type-safe. Please ensure the correct object
+  // is passed when using member pointers.
+  inline PMember Address() const { return m_address; }
+  inline PMember CountAddress() const { return m_countAddress; }
+
+  // - Context functions.
+
   inline LPCMetaType GetType() const { return m_type(); }
   inline LPCMetaType GetCountType() const { return m_countType(); }
   inline LPCMetaClass GetClass() const { return m_class(); }
