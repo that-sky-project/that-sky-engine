@@ -176,7 +176,7 @@ extern "C" {
 //   TimelineNode Timeline::timelineNodes[128];
 //   uint16_t Timeline::timelineNodesCount;
 #define META_REGISTER_ARRAY_MEMBER(_Class, _Name, _CountName) \
-  static MetaMemberFunction g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
+  static MetaMemberVariable g_metaMemberVariable_ ## _Class ## _ ## _Name = {\
     #_Name,\
     &_Class::_Name,\
     &_Class::_CountName\
@@ -605,9 +605,10 @@ public:
     CountType Class::*count
   )
     : MetaObject<MetaMemberVariable>(name)
-    , m_type(GetMetaTypeByType<Type>)
     , m_class(GetMetaClassByType<Class *>)
+    , m_type(GetMetaTypeByType<Type>)
     , m_address(rcast<PMember>(member))
+    , m_countType(GetMetaTypeByType<CountType>)
     , m_countAddress(rcast<PMember>(count))
   {
     ChainList();
@@ -621,9 +622,10 @@ public:
     CountType Class::*count
   )
     : MetaObject<MetaMemberVariable>(name)
-    , m_type(GetMetaTypeByType<Type>)
     , m_class(GetMetaClassByType<Class *>)
+    , m_type(GetMetaTypeByType<Type>)
     , m_address(rcast<PMember>(member))
+    , m_countType(GetMetaTypeByType<CountType>)
     , m_countAddress(rcast<PMember>(count))
     , m_staticArraySize(N)
   {
@@ -665,13 +667,13 @@ protected:
   // Offset of the member variable in the object.
   PMember m_address = nullptr;
   // Get the type of this member variable.
-  PFN_GetType m_type = nullptr;
+  PFN_GetType m_type = GetMetaType;
   // Get the class of this member variable belongs to.
-  PFN_GetClass m_class = nullptr;
+  PFN_GetClass m_class = GetMetaClass;
   // Descriptor of array length.
   PMember m_countAddress = nullptr;
   // Type of the array length.
-  PFN_GetType m_countType = nullptr;
+  PFN_GetType m_countType = GetMetaType;
   // Max length of the array.
   uint64_t m_staticArraySize = 0;
 };
