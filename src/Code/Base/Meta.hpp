@@ -1479,6 +1479,11 @@ private:
 public:
   static constexpr int kMaxClasses = MetaClass::kMaxClasses;
 
+  // Users can implement their own `g_metaSystem` and replace it via this
+  // function to store more classes.
+  static void SetMetaSystem(
+    MetaSystem *ptr);
+
   MetaSystem()
     : Object(MetaClassId(MetaSystem))
     , m_data(nullptr)

@@ -351,6 +351,12 @@ META_REGISTER_CLASS(MetaSystem, nullptr)
 
 static MetaSystem *g_metaSystem = nullptr;
 
+void MetaSystem::SetMetaSystem(
+  MetaSystem *ptr
+) {
+  g_metaSystem = ptr;
+}
+
 void MetaSystem::m_RecursiveInit(
   LPMetaClass mc,
   int *globalId,
@@ -444,6 +450,9 @@ void MetaSystem::Initialize() {
 // [SECTION] Functions
 // ----------------------------------------------------------------------------
 
+// Define SKY_HAS_METACLASS_GETTER to override the functions below.
+#ifndef SKY_HAS_METACLASS_GETTER
+
 LPCMetaClass GetMetaClassById(
   int globalId
 ) {
@@ -463,3 +472,5 @@ LPCMetaClass GetMetaClassByName(
 
   return it->second;
 }
+
+#endif
