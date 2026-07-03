@@ -192,8 +192,7 @@ extern "C" {
 // Example:
 //   META_REGISTER_FUNCTION_MEMBER(Event, Start)
 #define META_REGISTER_FUNCTION_MEMBER(_Class, _Name) \
-  static MetaMemberFunctionImpl<_Class, decltype(&_Class::_Name)>\
-  g_metaMemberFunction_ ## _Class ## _ ## _Name = {\
+  static MetaMemberFunction g_metaMemberFunction_ ## _Class ## _ ## _Name = {\
     #_Name,\
     &_Class::_Name\
   };
@@ -525,36 +524,44 @@ protected:
   using PFN_ApplyWrapper = void (*)(
     void (VoidClass::*)(void), void *, Variable *, Variable *, u32);
 
-  // Hidden full constructor.
+public:
+  template<typename Class, typename Ret, typename ...Args>
   MetaMemberFunction(
     cstring name,
-    PFN_VoidMember member,
-    PFN_InitFunctionSignature init,
-    PFN_ApplyWrapper apply,
-    PFN_GetClass clazz
+    Ret (Class::*member)(Args...)
   )
     : MetaObject<MetaMemberFunction>(name)
-    , m_function(member)
-    , m_initSignature(init)
-    , m_applyWrapper(apply)
-    , m_class(clazz)
+    , m_function(rcast<PFN_VoidMember>(member))
+    , m_initSignature(InitializeFunctionSignature<Ret (Class::*)(Args...)>)
+    , m_applyWrapper(ApplyWrapper<Class, Ret (Class::*)(Args...)>)
+    , m_class(GetMetaClassByType<Class *>)
   {
     m_prev = MetaObject<MetaMemberFunction>::m_List();
     MetaObject<MetaMemberFunction>::m_List() = this;
   }
 
-public:
+  // Allow explicit copy,
   explicit MetaMemberFunction(
-    const MetaMemberFunction &src) = default;
+    const MetaMemberFunction &) = default;
 
+  // but cannot move or copy with `=`.
+  const MetaMemberFunction &operator=(
+    const MetaMemberFunction &) = delete;
+  MetaMemberFunction(
+    const MetaMemberFunction &&) = delete;
+  const MetaMemberFunction &operator=(
+    const MetaMemberFunction &&) = delete;
+
+  // Initialize function signature.
   inline void Initialize() { m_initSignature(&m_signature); }
+  // Get the class where the function from.
   inline LPCMetaClass GetClass() const { return m_class(); }
 
 protected:
   // Function signature.
   FunctionSignature m_signature = {};
   // Registered function pointer.
-  PFN_VoidMember m_function = {};
+  PFN_VoidMember m_function = nullptr;
   // Apply wrapper.
   PFN_ApplyWrapper m_applyWrapper = nullptr;
   // Function signature initializer.
@@ -563,131 +570,85 @@ protected:
   PFN_GetClass m_class = nullptr;
 };
 
-template<typename Class, typename Fn>
-class MetaMemberFunctionImpl;
-
-// Templated class stores the actual type.
-template<typename Class, typename Ret, typename ...Args>
-class MetaMemberFunctionImpl<Class, Ret (Class::*)(Args...)>: public MetaMemberFunction {
-protected:
-  // The registered member function must not be a const function.
-  using PFN_Member = Ret (Class::*)(Args...);
-
-public:
-  MetaMemberFunctionImpl(
-    cstring name,
-    PFN_Member member
-  )
-    : MetaMemberFunction(
-      name,
-      rcast<PFN_VoidMember>(member),
-      InitializeFunctionSignature<PFN_Member>,
-      ApplyWrapper<Class, PFN_Member>,
-      GetMetaClassByType<Class *>)
-  { }
-};
-
 // ----------------------------------------------------------------------------
 // [SECTION] MetaMemberVariable
 // ----------------------------------------------------------------------------
 
 // Represents a member variable.
+// WARN: The implementation of MetaMemberVariable IS NOT type-safe; passing an
+// incorrect object/type may cause a crash.
 class MetaMemberVariable: public MetaObject<MetaMemberVariable> {
 public:
-  struct Context {
-    Context(
-      int32_t offset,
-      int32_t vbtableOffset,
-      int32_t vbtableSlot
-    )
-      : offset(offset)
-      , vbtableOffset(vbtableOffset)
-      , vbtableSlot(vbtableSlot)
-    { }
+  // void ** can be dereference, is a better intermediate type.
+  using PMember = void *VoidClass::*;
 
-    // Offset of a member variable within the object (either the passed object
-    // itself or a base class subobject).
-    int32_t offset = 0;
-    // Offset of the vbtable within the object itself, always be 0 or 8.
-    int32_t vbtableOffset = 0;
-    // The vbtable slot index corresponding to the base class subobject that
-    // contains the target member variable.
-    int32_t vbtableSlot = 0;
-  };
-
-  // Register a static array member variable.
-  MetaMemberVariable(
-    cstring name,
-    PFN_GetClass clazz,
-    int32_t offset,
-    PFN_GetType type,
-    int32_t countOffset,
-    PFN_GetType countType,
-    uint64_t maxSize
-  )
-    : MetaObject<MetaMemberVariable>(name)
-    , m_address(offset)
-    , m_type(type)
-    , m_class(clazz)
-    , m_countAddress(countOffset)
-    , m_countType(countType)
-    , m_staticArraySize(maxSize)
-  {
+private:
+  void ChainList() {
     m_prev = MetaObject<MetaMemberVariable>::m_List();
     MetaObject<MetaMemberVariable>::m_List() = this;
   }
 
-  // Register a dynamic array member variable.
+public:
+  // Simple member.
+  template<typename Class, typename Type>
   MetaMemberVariable(
     cstring name,
-    PFN_GetClass clazz,
-    int32_t offset,
-    PFN_GetType type,
-    int32_t countOffset,
-    PFN_GetType countType
+    Type Class::*member
   )
-    : MetaMemberVariable(name, clazz, offset, type, countOffset, countType, 0)
-  { }
+    : MetaObject<MetaMemberVariable>(name)
+    , m_address(rcast<PMember>(member))
+  {
+    ChainList();
+  }
 
-  // Register a simple member variable.
+  // Dynamic array.
+  template<typename Class, typename Type, typename CountType>
   MetaMemberVariable(
     cstring name,
-    PFN_GetClass clazz,
-    int32_t offset,
-    PFN_GetType type
+    Type *Class::*member,
+    CountType Class::*count
   )
-    : MetaMemberVariable(name, clazz, offset, type, 0, nullptr, 0)
-  { }
-
-  inline Context GetContext() const {
-    return { m_address, m_vbAddress, m_vbSlot };
+    : MetaObject<MetaMemberVariable>(name)
+    , m_address(rcast<PMember>(member))
+    , m_countAddress(rcast<PMember>(count))
+  {
+    ChainList();
   }
 
-  inline Context GetCountContext() const {
-    return { m_countAddress, m_countVbAddress, m_countVbSlot };
+  // Static array.
+  template<typename Class, typename Type, typename CountType, std::size_t N>
+  MetaMemberVariable(
+    cstring name,
+    Type (Class::*member)[N],
+    CountType Class::*count
+  )
+    : MetaObject<MetaMemberVariable>(name)
+    , m_address(rcast<PMember>(member))
+    , m_countAddress(rcast<PMember>(count))
+    , m_staticArraySize(N)
+  {
+    ChainList();
   }
 
+  // Get the count of a member array, from an object.
+  inline size_t Count(void *pObj) const;
   inline LPCMetaType GetType() const { return m_type(); }
   inline LPCMetaType GetCountType() const { return m_countType(); }
   inline LPCMetaClass GetClass() const { return m_class(); }
-  inline uint64_t GetStaticSize() const { return m_staticArraySize; }
-  inline bool IsArray() const { return m_countAddress || m_countVbSlot != -1; }
+  inline size_t StaticArraySize() const { return m_staticArraySize; }
+  inline bool IsArray() const { return !!m_countAddress; }
   inline bool IsStaticArray() const { return IsArray() && !!m_staticArraySize; }
   inline bool IsDynamicArray() const { return IsArray() && !m_staticArraySize; }
 
 protected:
   // Offset of the member variable in the object.
-  int32_t m_address = 0;
-  int32_t m_vbAddress = 0;
-  int32_t m_vbSlot = 0;
+  PMember m_address = nullptr;
   // Get the type of this member variable.
   PFN_GetType m_type = nullptr;
   // Get the class of this member variable belongs to.
   PFN_GetClass m_class = nullptr;
   // Descriptor of array length.
-  int32_t m_countAddress = 0;
-  int32_t m_countVbAddress = 0;
-  int32_t m_countVbSlot = -1;
+  PMember m_countAddress = nullptr;
   // Type of the array length.
   PFN_GetType m_countType = nullptr;
   // Max length of the array.
@@ -1122,7 +1083,7 @@ public:
   virtual void *ResolveMember(
     void *ppObject,
     LPCMetaClass pClass,
-    const MetaMemberVariable::Context *context
+    MetaMemberVariable::PMember context
   ) const = 0;
 
   inline LPMetaClass GetParent() const { if (!m_parent) return nullptr; return m_parent(); }
@@ -1311,22 +1272,18 @@ public:
   virtual void *ResolveMember(
     void *ppObject,
     LPCMetaClass pClass,
-    const MetaMemberVariable::Context *pContext
+    MetaMemberVariable::PMember pContext
   ) const override {
-    i32 vbtblOffs = pContext->vbtableOffset
-      , vbtblSlot = pContext->vbtableSlot;
     value_type pObject = nullptr;
 
     DynamicCast(&pObject, ppObject, pClass);
     SkyAssert(pObject);
+    u08 object_type::*pMember = rcast<u08 object_type::*>(pContext);
 
-    uintptr_t base = (uintptr_t)pObject;
-    if (vbtblSlot)
-      // Simulating MSVC virtual base table addressing, resolves the address
-      // of base class subobjects.
-      base = base + vbtblOffs + *(int *)(*(uintptr_t *)(base + vbtblOffs) + 4 * (vbtblSlot >> 2));
-
-    return (void *)(base + pContext->offset);
+    // pContext is a pointer to void*, so the resolved type is void*.
+    // In fact we don't care the actual type (and the alignment), the function
+    // only applys the offset.
+    return (void *)&(pObject->*pMember);
   }
 };
 
