@@ -3,6 +3,31 @@
 #include "Base/Meta.hpp"
 
 // ----------------------------------------------------------------------------
+// [SECTION] MetaMemberVariable
+// ----------------------------------------------------------------------------
+
+inline size_t MetaMemberVariable::Count(
+  void *pObj
+) const {
+  // NOTE: The logic here looks strange, but this is the libBootloader.so
+  // and Sky.exe disassembly shows. The commented is my implementation, for
+  // a better compatibility.
+  void *p = nullptr;
+  if (m_countAddress) {
+    LPCMetaClass mc = GetClass()->AsClass();
+    p = mc->ResolveMember(pObj, mc, m_countAddress);
+  }
+  return (size_t)GetCountType()->ToNumber(p);
+  /*
+  if (!m_countAddress)
+    return 0;
+  LPCMetaClass mc = GetClass()->AsClass();
+  void *p = mc->ResolveMember(pObj, mc, m_countAddress);
+  return (size_t)GetCountType()->ToNumber(p);
+  */
+}
+
+// ----------------------------------------------------------------------------
 // [SECTION] MetaType
 // ----------------------------------------------------------------------------
 
@@ -121,7 +146,7 @@ public:
   virtual void *ResolveMember(
     void *,
     LPCMetaClass,
-    const MetaMemberVariable::Context *
+    MetaMemberVariable::PMember
   ) const override {
     return nullptr;
   }
