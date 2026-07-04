@@ -336,7 +336,10 @@ public:
     MetaData &target,
     cstring key,
     cstring value
-  ) {
+  )
+    : m_name(key)
+    , m_fields((void *)value)
+  {
     m_prev = (LPMetaData)target.m_fields;
     target.m_fields = (void *)this;
   }
