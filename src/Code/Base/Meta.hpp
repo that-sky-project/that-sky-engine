@@ -465,7 +465,7 @@ public:
     *m_valuePtr = value;
   }
 
-  inline T GetValue() const { return *scast<T *>(m_valuePtr); }
+  inline T GetValue() const { return *static_cast<T *>(m_valuePtr); }
 };
 
 // ----------------------------------------------------------------------------
@@ -528,7 +528,7 @@ public:
     Ret (Class::*member)(Args...)
   )
     : MetaObject<MetaMemberFunction>(name)
-    , m_function(rcast<PFN_VoidMember>(member))
+    , m_function(reinterpret_cast<PFN_VoidMember>(member))
     , m_initSignature(InitializeFunctionSignature<Ret (Class::*)(Args...)>)
     , m_applyWrapper(ApplyWrapper<Class, Ret (Class::*)(Args...)>)
     , m_class(GetMetaClassByType<Class *>)
@@ -595,7 +595,7 @@ public:
     : MetaObject<MetaMemberVariable>(name)
     , m_type(GetMetaTypeByType<Type>)
     , m_class(GetMetaClassByType<Class *>)
-    , m_address(rcast<PMember>(member))
+    , m_address(reinterpret_cast<PMember>(member))
   {
     ChainList();
   }
@@ -610,9 +610,9 @@ public:
     : MetaObject<MetaMemberVariable>(name)
     , m_class(GetMetaClassByType<Class *>)
     , m_type(GetMetaTypeByType<Type>)
-    , m_address(rcast<PMember>(member))
+    , m_address(reinterpret_cast<PMember>(member))
     , m_countType(GetMetaTypeByType<CountType>)
-    , m_countAddress(rcast<PMember>(count))
+    , m_countAddress(reinterpret_cast<PMember>(count))
   {
     ChainList();
   }
@@ -627,9 +627,9 @@ public:
     : MetaObject<MetaMemberVariable>(name)
     , m_class(GetMetaClassByType<Class *>)
     , m_type(GetMetaTypeByType<Type>)
-    , m_address(rcast<PMember>(member))
+    , m_address(reinterpret_cast<PMember>(member))
     , m_countType(GetMetaTypeByType<CountType>)
-    , m_countAddress(rcast<PMember>(count))
+    , m_countAddress(reinterpret_cast<PMember>(count))
     , m_staticArraySize(N)
   {
     ChainList();
@@ -1304,7 +1304,7 @@ public:
 
     DynamicCast(&pObject, ppObject, pClass);
     SkyAssert(pObject);
-    u08 object_type::*pMember = rcast<u08 object_type::*>(pContext);
+    u08 object_type::*pMember = reinterpret_cast<u08 object_type::*>(pContext);
 
     // pContext is a pointer to void*, so the resolved type is void*.
     // In fact we don't care the actual type (and the alignment), the function
@@ -1409,8 +1409,8 @@ void ApplyWrapper(
 ) {
   // Undo the erasure performed by the dispatcher and call the real function.
   Apply(
-    rcast<Fn>(fn),
-    scast<Class *>(pObject),
+    reinterpret_cast<Fn>(fn),
+    static_cast<Class *>(pObject),
     retval,
     args,
     argCount);
