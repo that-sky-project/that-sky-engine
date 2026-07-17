@@ -86,10 +86,7 @@ cstring MetaTypeString<TgcString>::ExtractCString(
 }
 
 static MetaTypeBool g_metaType_bool{"bool"};
-template<>
-LPCMetaType GetMetaTypeByType<bool>() {
-  return g_metaType_bool.GetActive();
-}
+META_REGISTER_TYPE(bool)
 
 META_REGISTER_TYPE_NUMBER(uint8_t)
 META_REGISTER_TYPE_NUMBER(int8_t)

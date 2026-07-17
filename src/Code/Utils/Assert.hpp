@@ -4,20 +4,21 @@
 #include <stdarg.h>
 #include <intrin.h>
 
-class Private {
-public:
-  static void AssertImpl(
-    const char *expression,
-    const char *file,
-    int line);
+namespace Private {
 
-  static void AssertMsgImpl(
-    const char *expression,
-    const char *file,
-    int line,
-    const char *msg,
-    ...);
-};
+void AssertImpl(
+  const char *expression,
+  const char *file,
+  int line);
+
+void AssertMsgImpl(
+  const char *expression,
+  const char *file,
+  int line,
+  const char *msg,
+  ...);
+
+}
 
 #define SkyAssert(expr) (void)(\
   (!!(expr)) || (Private::AssertImpl(#expr, __FILE__, __LINE__), __debugbreak(), 0)\
