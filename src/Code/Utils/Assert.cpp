@@ -1,11 +1,44 @@
 #include <stdio.h>
-#include <Windows.h>
+#include "Utils/Types.h"
 #include "Utils/Assert.hpp"
 
+static PFN_AssertHandler g_assertHandler = nullptr;
+
 void Private::AssertImpl(
-  const char *expression,
-  const char *file,
-  int line
+  cstring expr,
+  cstring file,
+  u32 line,
+  u32 col
+) {
+  if (g_assertHandler)
+    g_assertHandler(expr, "", file, line, col);
+}
+
+void Private::AssertMsgImpl(
+  cstring expr,
+  cstring file,
+  u32 line,
+  u32 hash,
+  cstring format,
+  ...
+) {
+  char buffer[2056];
+
+  va_list va;
+  va_start(va, format);
+  vsnprintf(buffer, sizeof(buffer), format, va);
+  va_end(va);
+
+  if (g_assertHandler)
+    g_assertHandler(expr, buffer, file, line, hash);
+}
+
+/*
+void Private::AssertImpl(
+  cstring expr,
+  cstring file,
+  u32 line,
+  u32 hash
 ) {
   char buf[1024];
 
@@ -25,10 +58,11 @@ void Private::AssertImpl(
 }
 
 void Private::AssertMsgImpl(
-  const char *expression,
-  const char *file,
-  int line,
-  const char *msg,
+  cstring expr,
+  cstring file,
+  u32 line,
+  u32 hash,
+  cstring format,
   ...
 ) {
   char buf1[1024];
@@ -60,3 +94,7 @@ void Private::AssertMsgImpl(
     "Assertion failed",
     MB_ICONERROR);
 }
+*/
+
+void SetAssertHandler(PFN_AssertHandler handler) { g_assertHandler = handler; }
+void GetAssertHandler(PFN_AssertHandler *pHandler) { if (pHandler) *pHandler = g_assertHandler; }

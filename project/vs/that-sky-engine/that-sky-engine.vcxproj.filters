@@ -41,5 +41,8 @@
     <ClInclude Include="..\..\..\src\Code\Utils\Types.h">
       <Filter>Code\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Utils\TSPOS.hpp">
+      <Filter>Code\Utils</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
