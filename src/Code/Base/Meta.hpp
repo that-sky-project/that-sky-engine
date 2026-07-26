@@ -113,7 +113,7 @@ extern "C" {
 
 // Register a type. Place the macro in cpp files.
 // Example:
-//   META_REGISTER_TYPE(Heap)
+//   META_REGISTER_TYPE(uint8_t)
 #define META_REGISTER_TYPE(T)\
   template<>\
   LPCMetaType GetMetaTypeByType<T>() {\

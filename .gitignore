@@ -2,6 +2,9 @@
 .vscode/
 .vs/
 dist/
+ida/
+bak/
+disabled/
 
 # Test
 test.*
