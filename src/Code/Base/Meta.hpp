@@ -224,7 +224,7 @@ class MetaMemberVariable;
 class MetaConstant;
 class MetaType;
 class MetaClass;
-class MetaSystem;
+class MetaSystemExample;
 class Object;
 
 // FNV-1a hash for cstring.
@@ -287,6 +287,10 @@ void ApplyWrapper(
 template<typename T> LPCMetaType GetMetaTypeByType();
 template<typename Tp> LPCMetaClass GetMetaClassByType();
 
+bool IsDerivedFrom(
+  LPCMetaClass mc1,
+  LPCMetaClass mc2);
+
 // Get an implmentation of MetaType.
 LPCMetaType GetMetaType();
 
@@ -301,10 +305,6 @@ LPCMetaClass GetMetaClassById(
 LPCMetaClass GetMetaClassByName(
   cstring name,
   bool constString = false);
-
-bool IsDerivedFrom(
-  LPCMetaClass mc1,
-  LPCMetaClass mc2);
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaData
@@ -1469,10 +1469,10 @@ struct MetaSystemDataContainer {
   std::unordered_map<cstring, void *> unk_8;
 };
 
-META_DECLARE_CLASS(MetaSystem)
+META_DECLARE_CLASS(MetaSystemExample)
 
 // Example MetaSystem declaration.
-class MetaSystem: public Object {
+class MetaSystemExample: public Object {
 private:
   static void m_RecursiveInit(
     LPMetaClass pMetaClass,
@@ -1482,13 +1482,8 @@ private:
 public:
   static constexpr int kMaxClasses = MetaClass::kMaxClasses;
 
-  // Users can implement their own `g_metaSystem` and replace it via this
-  // function to store more classes.
-  static void SetMetaSystem(
-    MetaSystem *ptr);
-
-  MetaSystem()
-    : Object(MetaClassId(MetaSystem))
+  MetaSystemExample()
+    : Object(MetaClassId(MetaSystemExample))
     , m_data(nullptr)
     , m_classes()
   { }
@@ -1519,6 +1514,24 @@ META_DECLARE_TYPE(cstring)
 META_DECLARE_TYPE(TgcString)
 
 META_DECLARE_CLASS(MetaClass)
+
+// ----------------------------------------------------------------------------
+// [SECTION] Context
+// ----------------------------------------------------------------------------
+
+using PFN_UserGetMetaClassById = LPCMetaClass (*)(const void *, i32);
+using PFN_UserGetMetaClassByName = LPCMetaClass (*)(const void *, cstring, bool);
+
+// Set your own MetaSystem with the functions below.
+void SetMetaSystem(
+  const void *userdata,
+  PFN_UserGetMetaClassById idGetter,
+  PFN_UserGetMetaClassByName nameGetter);
+
+void GetMetaSystem(
+  const void **pUserdata,
+  PFN_UserGetMetaClassById *pIdGetter,
+  PFN_UserGetMetaClassByName *pNameGetter);
 
 // #ifndef __META_HPP__
 #endif

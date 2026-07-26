@@ -344,17 +344,33 @@ META_REGISTER_CLASS(MetaClass, nullptr)
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
 
-META_REGISTER_CLASS(MetaSystem, nullptr)
+META_REGISTER_CLASS(MetaSystemExample, nullptr)
 
-static MetaSystem *g_metaSystem = nullptr;
+static MetaSystemExample *g_metaSystem = nullptr;
 
-void MetaSystem::SetMetaSystem(
-  MetaSystem *ptr
+static LPCMetaClass GetMetaClassById_default(
+  const void *,
+  int globalId
 ) {
-  g_metaSystem = ptr;
+  return g_metaSystem->m_classes[globalId];
 }
 
-void MetaSystem::m_RecursiveInit(
+static LPCMetaClass GetMetaClassByName_default(
+  const void *,
+  cstring name,
+  bool constString
+) {
+  if (constString) { }
+
+  auto &classes = g_metaSystem->m_data->m_metaClasses;
+  auto it = classes.find(name);
+  if (it == classes.end())
+    return nullptr;
+
+  return it->second;
+}
+
+void MetaSystemExample::m_RecursiveInit(
   LPMetaClass mc,
   int *globalId,
   int *topoId
@@ -363,7 +379,7 @@ void MetaSystem::m_RecursiveInit(
     return;
 
   if (mc->m_parent)
-    MetaSystem::m_RecursiveInit(mc->m_parent(), globalId, topoId);
+    m_RecursiveInit(mc->m_parent(), globalId, topoId);
 
   SkyAssert(*globalId < kMaxClasses);
 
@@ -391,9 +407,10 @@ void MetaSystem::m_RecursiveInit(
   mc->m_metaDataContainer = new MetaDataContainer();
 }
 
-void MetaSystem::Initialize() {
+void MetaSystemExample::Initialize() {
   SkyAssertMsg(!g_metaSystem, "MetaSystem is a singleton and must be initialized only once.");
   g_metaSystem = this;
+  SetMetaSystem(this, GetMetaClassById_default, GetMetaClassByName_default);
 
   m_data = new MetaSystemDataContainer();
 
@@ -440,34 +457,50 @@ void MetaSystem::Initialize() {
     mf->GetClass()->m_metaDataContainer->m_functions[name] = mf;
   }
 
-  m_metaClassId = MetaClassImpl<MetaSystem>::Must_call_META_REGISTER_CLASS()->m_globalId;
+  m_metaClassId = MetaClassImpl<MetaSystemExample>::Must_call_META_REGISTER_CLASS()->m_globalId;
 }
 
 // ----------------------------------------------------------------------------
 // [SECTION] Functions
 // ----------------------------------------------------------------------------
 
-// Define SKY_HAS_METACLASS_GETTER to override the functions below.
-#ifndef SKY_HAS_METACLASS_GETTER
+static const void *g_metaSystem_userData = nullptr;
+static PFN_UserGetMetaClassById g_metaSystem_idGetter = nullptr;
+static PFN_UserGetMetaClassByName g_metaSystem_nameGetter = nullptr;
+
+void SetMetaSystem(
+  const void *userdata,
+  PFN_UserGetMetaClassById idGetter,
+  PFN_UserGetMetaClassByName nameGetter
+) {
+  g_metaSystem_userData = userdata;
+  g_metaSystem_idGetter = idGetter;
+  g_metaSystem_nameGetter = nameGetter;
+}
+
+void GetMetaSystem(
+  const void **pUserdata,
+  PFN_UserGetMetaClassById *pIdGetter,
+  PFN_UserGetMetaClassByName *pNameGetter
+) {
+  if (pUserdata) *pUserdata = g_metaSystem_userData;
+  if (pIdGetter) *pIdGetter = g_metaSystem_idGetter;
+  if (pNameGetter) *pNameGetter = g_metaSystem_nameGetter;
+}
 
 LPCMetaClass GetMetaClassById(
   int globalId
 ) {
-  return g_metaSystem->m_classes[globalId];
+  if (g_metaSystem_idGetter)
+    return g_metaSystem_idGetter(g_metaSystem_userData, globalId);
+  return nullptr;
 }
 
 LPCMetaClass GetMetaClassByName(
   cstring name,
   bool constString
 ) {
-  if (constString) { }
-
-  auto &classes = g_metaSystem->m_data->m_metaClasses;
-  auto it = classes.find(name);
-  if (it == classes.end())
-    return nullptr;
-
-  return it->second;
+  if (g_metaSystem_nameGetter)
+    return g_metaSystem_nameGetter(g_metaSystem_userData, name, constString);
+  return nullptr;
 }
-
-#endif
