@@ -66,7 +66,7 @@ int MetaLuaCast(
 
   pBase = (Object *)mc->Upcast(t);
   if (pBase)
-    sourceType = GetMetaClassById(pBase->m_metaClassId);
+    sourceType = GetMetaClassById(pBase->GetMetaClassId());
   else
     sourceType = GetMetaType();
 

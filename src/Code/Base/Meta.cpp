@@ -3,6 +3,31 @@
 #include "Base/Meta.hpp"
 
 // ----------------------------------------------------------------------------
+// [SECTION] MetaMemberVariable
+// ----------------------------------------------------------------------------
+
+inline size_t MetaMemberVariable::Count(
+  void *pObj
+) const {
+  // NOTE: The logic here looks strange, but this is the libBootloader.so
+  // and Sky.exe disassembly shows. The commented is my implementation, for
+  // a better compatibility.
+  void *p = nullptr;
+  if (m_countAddress) {
+    LPCMetaClass mc = GetClass()->AsClass();
+    p = mc->ResolveMember(pObj, mc, m_countAddress);
+  }
+  return (size_t)GetCountType()->ToNumber(p);
+  /*
+  if (!m_countAddress)
+    return 0;
+  LPCMetaClass mc = GetClass()->AsClass();
+  void *p = mc->ResolveMember(pObj, mc, m_countAddress);
+  return (size_t)GetCountType()->ToNumber(p);
+  */
+}
+
+// ----------------------------------------------------------------------------
 // [SECTION] MetaType
 // ----------------------------------------------------------------------------
 
@@ -61,10 +86,7 @@ cstring MetaTypeString<TgcString>::ExtractCString(
 }
 
 static MetaTypeBool g_metaType_bool{"bool"};
-template<>
-LPCMetaType GetMetaTypeByType<bool>() {
-  return g_metaType_bool.GetActive();
-}
+META_REGISTER_TYPE(bool)
 
 META_REGISTER_TYPE_NUMBER(uint8_t)
 META_REGISTER_TYPE_NUMBER(int8_t)
@@ -121,7 +143,7 @@ public:
   virtual void *ResolveMember(
     void *,
     LPCMetaClass,
-    const MetaMemberVariable::Context *
+    MetaMemberVariable::PMember
   ) const override {
     return nullptr;
   }
@@ -178,7 +200,7 @@ void MetaClass::DynamicCast(
   //
   // So we can, and we need to extract the metaclass id to get the correct address
   // of the object.
-  LPCMetaClass pObjectClass = GetMetaClassById(pObject->m_metaClassId);
+  LPCMetaClass pObjectClass = GetMetaClassById(pObject->GetMetaClassId());
   if (pObjectClass->AsClass() == this) {
     // The actual type of the source object is the current type.
     // Downcast to adjust pointer.
@@ -228,7 +250,7 @@ void MetaClass::WriteType(
 
   Object *pBase = (Object *)Upcast(pObject);
   if (pBase)
-    result = GetMetaClassById(pBase->m_metaClassId)->Downcast(pBase);
+    result = GetMetaClassById(pBase->GetMetaClassId())->Downcast(pBase);
   else
     result = pObject;
 
@@ -322,11 +344,33 @@ META_REGISTER_CLASS(MetaClass, nullptr)
 // [SECTION] MetaSystem
 // ----------------------------------------------------------------------------
 
-META_REGISTER_CLASS(MetaSystem, nullptr)
+META_REGISTER_CLASS(MetaSystemExample, nullptr)
 
-static MetaSystem *g_metaSystem = nullptr;
+static MetaSystemExample *g_metaSystem = nullptr;
 
-void MetaSystem::m_RecursiveInit(
+static LPCMetaClass GetMetaClassById_default(
+  const void *,
+  int globalId
+) {
+  return g_metaSystem->m_classes[globalId];
+}
+
+static LPCMetaClass GetMetaClassByName_default(
+  const void *,
+  cstring name,
+  bool constString
+) {
+  if (constString) { }
+
+  auto &classes = g_metaSystem->m_data->m_metaClasses;
+  auto it = classes.find(name);
+  if (it == classes.end())
+    return nullptr;
+
+  return it->second;
+}
+
+void MetaSystemExample::m_RecursiveInit(
   LPMetaClass mc,
   int *globalId,
   int *topoId
@@ -335,7 +379,7 @@ void MetaSystem::m_RecursiveInit(
     return;
 
   if (mc->m_parent)
-    MetaSystem::m_RecursiveInit(mc->m_parent(), globalId, topoId);
+    m_RecursiveInit(mc->m_parent(), globalId, topoId);
 
   SkyAssert(*globalId < kMaxClasses);
 
@@ -363,19 +407,22 @@ void MetaSystem::m_RecursiveInit(
   mc->m_metaDataContainer = new MetaDataContainer();
 }
 
-void MetaSystem::Initialize() {
+void MetaSystemExample::Initialize() {
   SkyAssertMsg(!g_metaSystem, "MetaSystem is a singleton and must be initialized only once.");
   g_metaSystem = this;
+  SetMetaSystem(this, GetMetaClassById_default, GetMetaClassByName_default);
 
   m_data = new MetaSystemDataContainer();
 
+  // Copy metatypes.
   for (auto it = MetaObject<MetaType>::m_List(); it; it = it->GetPrev()) {
     char *name = new char[strlen(it->GetName()) + 1];
     strcpy(name, it->GetName());
 
     LPMetaType mt = it->Copy();
-    mt->GetName() = name;
-    mt->GetActive() = it->GetActive() = mt;
+    mt->SetName(name);
+    mt->SetActive(mt);
+    it->SetActive(mt);
 
     m_data->m_metaTypes[name] = mt;
 
@@ -385,6 +432,7 @@ void MetaSystem::Initialize() {
     m_data->m_metaClasses[name] = (LPMetaClass )mt;
   }
 
+  // Store metaclasses.
   for (int i = 0; i < kMaxClasses; i++) {
     m_classes[i] = GetMetaType()->AsClass();
   }
@@ -392,34 +440,67 @@ void MetaSystem::Initialize() {
   int topoOrder = 0
     , globalId = 0;
   
+  // Initialize metaclasses.
   for (auto &it: m_data->m_metaClasses) {
     m_RecursiveInit(it.second, &globalId, &topoOrder);
     m_classes[it.second->m_globalId] = it.second;
   }
 
-  m_metaClassId = MetaClassImpl<MetaSystem>::Must_call_META_REGISTER_CLASS()->m_globalId;
+  // Initialize metamemberfunctons.
+  for (auto it = MetaObject<MetaMemberFunction>::m_List(); it; it = it->GetPrev()) {
+    char *name = new char[strlen(it->GetName()) + 1];
+    strcpy(name, it->GetName());
+
+    MetaMemberFunction *mf = new MetaMemberFunction(*it);
+    mf->SetName(name);
+    mf->Initialize();
+    mf->GetClass()->m_metaDataContainer->m_functions[name] = mf;
+  }
+
+  m_metaClassId = MetaClassImpl<MetaSystemExample>::Must_call_META_REGISTER_CLASS()->m_globalId;
 }
 
 // ----------------------------------------------------------------------------
 // [SECTION] Functions
 // ----------------------------------------------------------------------------
 
+static const void *g_metaSystem_userData = nullptr;
+static PFN_UserGetMetaClassById g_metaSystem_idGetter = nullptr;
+static PFN_UserGetMetaClassByName g_metaSystem_nameGetter = nullptr;
+
+void SetMetaSystem(
+  const void *userdata,
+  PFN_UserGetMetaClassById idGetter,
+  PFN_UserGetMetaClassByName nameGetter
+) {
+  g_metaSystem_userData = userdata;
+  g_metaSystem_idGetter = idGetter;
+  g_metaSystem_nameGetter = nameGetter;
+}
+
+void GetMetaSystem(
+  const void **pUserdata,
+  PFN_UserGetMetaClassById *pIdGetter,
+  PFN_UserGetMetaClassByName *pNameGetter
+) {
+  if (pUserdata) *pUserdata = g_metaSystem_userData;
+  if (pIdGetter) *pIdGetter = g_metaSystem_idGetter;
+  if (pNameGetter) *pNameGetter = g_metaSystem_nameGetter;
+}
+
 LPCMetaClass GetMetaClassById(
   int globalId
 ) {
-  return g_metaSystem->m_classes[globalId];
+  if (g_metaSystem_idGetter)
+    return g_metaSystem_idGetter(g_metaSystem_userData, globalId);
+  return nullptr;
 }
 
 LPCMetaClass GetMetaClassByName(
   cstring name,
   bool constString
 ) {
-  if (constString) { }
-
-  auto &classes = g_metaSystem->m_data->m_metaClasses;
-  auto it = classes.find(name);
-  if (it == classes.end())
-    return nullptr;
-
-  return it->second;
+  if (g_metaSystem_nameGetter)
+    return g_metaSystem_nameGetter(g_metaSystem_userData, name, constString);
+  return nullptr;
 }

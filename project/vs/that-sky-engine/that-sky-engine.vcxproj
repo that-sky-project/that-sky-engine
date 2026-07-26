@@ -48,7 +48,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp14</LanguageStandard>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\..\libraries\dlmalloc-2.8.6;$(ProjectDir)..\..\..\libraries\lua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\..\libraries\dlmalloc-2.8.6;$(ProjectDir)..\..\..\libraries\lua;$(ProjectDir)..\..\..\src\Code;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -60,17 +60,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\Code\Base\Assert.cpp" />
     <ClCompile Include="..\..\..\src\Code\Base\LuaInterface.cpp" />
     <ClCompile Include="..\..\..\src\Code\Base\Meta.cpp" />
-    <ClCompile Include="..\..\..\src\Code\Base\StlAllocator.cpp" />
+    <ClCompile Include="..\..\..\src\Code\Utils\Assert.cpp" />
+    <ClCompile Include="..\..\..\src\Code\Utils\StlAllocator.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\Code\Base\Assert.hpp" />
     <ClInclude Include="..\..\..\src\Code\Base\LuaInterface.hpp" />
     <ClInclude Include="..\..\..\src\Code\Base\Meta.hpp" />
-    <ClInclude Include="..\..\..\src\Code\Base\StlAllocator.hpp" />
-    <ClInclude Include="..\..\..\src\Code\Base\Types.h" />
+    <ClInclude Include="..\..\..\src\Code\Utils\Assert.hpp" />
+    <ClInclude Include="..\..\..\src\Code\Utils\StlAllocator.hpp" />
+    <ClInclude Include="..\..\..\src\Code\Utils\Types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
