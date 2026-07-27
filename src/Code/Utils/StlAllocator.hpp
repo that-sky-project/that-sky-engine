@@ -1,5 +1,5 @@
-#ifndef __STLALLOCATOR_HPP__
-#define __STLALLOCATOR_HPP__
+#ifndef __UTILS_STLALLOCATOR_HPP__
+#define __UTILS_STLALLOCATOR_HPP__
 
 #include <new>
 #include <stddef.h>

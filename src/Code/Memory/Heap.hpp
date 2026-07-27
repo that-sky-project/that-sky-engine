@@ -1,5 +1,5 @@
-#ifndef __SKY_SKYHEAP_HPP__
-#define __SKY_SKYHEAP_HPP__
+#ifndef __MEMORY_HEAP_HPP__
+#define __MEMORY_HEAP_HPP__
 
 #include <malloc-2.8.6.h>
 #include "Utils/Types.h"
