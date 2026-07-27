@@ -10,6 +10,9 @@
     <Filter Include="Code\Utils">
       <UniqueIdentifier>{29c1e190-a1b1-442f-8881-1c2547616103}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Code\Memory">
+      <UniqueIdentifier>{17a7f501-991d-4664-8ed5-80c2476ef9b4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\Code\Base\LuaInterface.cpp">
@@ -23,6 +26,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\Code\Utils\StlAllocator.cpp">
       <Filter>Code\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\Code\Memory\Heap.cpp">
+      <Filter>Code\Memory</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -39,6 +45,9 @@
       <Filter>Code\Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\Code\Utils\Types.h">
+      <Filter>Code\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\Code\Utils\TSPOS.hpp">
       <Filter>Code\Utils</Filter>
     </ClInclude>
   </ItemGroup>
