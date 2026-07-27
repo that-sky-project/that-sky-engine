@@ -1,4 +1,7 @@
+#include "Memory/Heap.hpp"
 #include "Base/LuaInterface.hpp"
+
+HEAP_TAG_REGISTER(tag_LuaInterface)
 
 bool IsDerivedFrom(MetaClass const*, MetaClass const*) {
   return false;
@@ -94,29 +97,6 @@ Ret:
   mc->DestructByType(ppSourceObj);
   return 1;
 }
-
-class Heap;
-META_REGISTER_CLASS(Heap)
-class Heap: public Object {
-public:
-  Heap() {
-    m_metaClassId = MetaClassId(Heap);
-  }
-
-  void *Allocate(
-    size_t size,
-    int tag,
-    size_t align
-  ) {
-    return malloc(size);
-  }
-
-  void Free(void *p) {
-    free(p);
-  }
-};
-
-static constexpr int tag_LuaInterface = 0;
 
 int MetaLuaNewImpl(
   lua_State *L

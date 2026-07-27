@@ -8,6 +8,14 @@
 #pragma warning(disable: 28251)
 #endif
 
+namespace StlAllocator {
+
+void *Allocate(size_t size, size_t align, size_t minAlign);
+void Free(void *block);
+size_t GetSize(void *block);
+
+}
+
 void *operator new(::size_t _Size);
 void *operator new[](::size_t _Size);
 void operator delete(void *_Block) noexcept;
