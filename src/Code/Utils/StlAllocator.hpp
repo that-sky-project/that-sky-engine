@@ -1,5 +1,5 @@
-#ifndef __STLALLOCATOR_HPP__
-#define __STLALLOCATOR_HPP__
+#ifndef __UTILS_STLALLOCATOR_HPP__
+#define __UTILS_STLALLOCATOR_HPP__
 
 #include <new>
 #include <stddef.h>
@@ -7,6 +7,14 @@
 #if defined(_MSC_VER)
 #pragma warning(disable: 28251)
 #endif
+
+namespace StlAllocator {
+
+void *Allocate(size_t size, size_t align, size_t minAlign);
+void Free(void *block);
+size_t GetSize(void *block);
+
+}
 
 void *operator new(::size_t _Size);
 void *operator new[](::size_t _Size);

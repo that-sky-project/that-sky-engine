@@ -7,6 +7,7 @@ extern "C" {
 #include <lstate.h>
 }
 
+#include "Memory/Heap.hpp"
 #include "Base/Meta.hpp"
 
 META_DECLARE_CLASS(lua_State)
@@ -26,5 +27,7 @@ int MetaLuaCast(
 void MetaLuaBindClass(
   const MetaClass *T,
   lua_State *L);
+
+HEAP_TAG_DECLARE(tag_LuaInterface)
 
 #endif
