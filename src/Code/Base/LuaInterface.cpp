@@ -149,14 +149,17 @@ int MetaLuaDeleteImpl(
   upval->ReadType(L, 1, ppObject);
 
   metaClassHeap = MetaClassImpl<Heap>::Must_call_META_REGISTER_CLASS();
+  // Constructed a "void *", not a "Heap".
   ppHeapObject = (Heap **)metaClassHeap->ConstructByType(&pHeapObject);
 
   if (lua_type(L, 2) != LUA_TNONE)
+    // Read if provided an instance of Heap.
     metaClassHeap->ReadType(L, 2, ppHeapObject);
 
   metaClassHeap->DynamicCast(&pHeapObject, ppHeapObject, metaClassHeap);
   if (pHeapObject) {
     upval->DestructObject(t);
+    // Free the object through Heap.
     pHeapObject->Free(*ppObject);
   } else {
     upval->DeleteObject(t);
