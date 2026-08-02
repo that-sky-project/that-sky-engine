@@ -68,6 +68,7 @@ public:
   inline bool IsInitialized() { return !!m_mem; }
   size_t GetUsedBytes(bool refresh);
 
+  // Initialize the heap with given memory and params.
   void Initialize(
     void *memory,
     size_t maxSize,
@@ -75,13 +76,16 @@ public:
     bool isClearMemory,
     bool isClearAllowed);
 
+  // Reset the heap.
   void Clear();
 
+  // Try to allocate a memory block..
   void *Allocate(
     size_t size,
     HeapTagType *tag,
     size_t align);
 
+  // Free a memory block.
   void Free(
     void *p);
 
@@ -89,6 +93,7 @@ private:
   inline void m_BeginLock() { if (m_lock) m_lock->BeginLock(); }
   inline void m_EndLock() { if (m_lock) m_lock->EndLock(); }
 
+  // This function is only effective when the mspace is exhausted.
   void m_TryStlAllocate(
     void **pBlock,
     size_t size,
@@ -109,12 +114,15 @@ private:
   // Identifier of the heap.
   char m_name[30] = {0};
   char unk_2 = 0;
-  bool m_clearMemory = false;
+  bool m_clearMemory = true;
   // True if mspace is exhausted.
   bool m_isMemExhausted = false;
-  char m_isStatic = false;
+  // A static heap means that the base memory block of the heap's mspace is a
+  // static array, such as a fixed-length array inside an object, a global
+  // fixed-length array, etc.
+  bool m_isStatic = false;
   // Heap::Clear is allowed if true.
-  char m_isClearAllowed = false;
+  bool m_isClearAllowed = false;
   // Handle of mspace.
   mspace m_mem = nullptr;
   // Handle of mutex.

@@ -9,15 +9,13 @@ size_t Heap::GetUsedBytes(
   bool refresh
 ) {
   if (refresh) {
-    if (m_lock)
-      m_lock->BeginLock();
+    m_BeginLock();
 
     struct mallinfo info = mspace_mallinfo(m_mem);
     if (m_usedBytes <= info.uordblks)
       m_usedBytes = info.uordblks;
 
-    if (m_lock)
-      m_lock->EndLock();
+    m_EndLock();
 
     return info.uordblks;
   }

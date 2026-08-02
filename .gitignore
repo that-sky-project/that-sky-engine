@@ -5,6 +5,7 @@ dist/
 ida/
 bak/
 disabled/
+.VSCodeCounter/
 
 # Test
 test.*
