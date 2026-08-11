@@ -553,6 +553,8 @@ public:
   inline void Initialize() { m_initSignature(&m_signature); }
   // Get the class where the function from.
   inline LPCMetaClass GetClass() const { return m_class(); }
+  // Get the raw function pointer.
+  inline PFN_VoidMember Function() const { return m_function; }
 
 protected:
   // Function signature.

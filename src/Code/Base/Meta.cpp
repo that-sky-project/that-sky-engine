@@ -6,6 +6,8 @@
 // [SECTION] MetaMemberVariable
 // ----------------------------------------------------------------------------
 
+// Place the complete definition in .cpp because we need a complete MetaClass
+// interface.
 inline size_t MetaMemberVariable::Count(
   void *pObj
 ) const {
