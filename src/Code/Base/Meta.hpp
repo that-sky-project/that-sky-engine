@@ -473,19 +473,16 @@ public:
 // ----------------------------------------------------------------------------
 
 // Function signature storage.
-class FunctionSignature {
-public:
-  FunctionSignature() = default;
-
+struct FunctionSignature {
   template<typename Class, typename Ret, typename ...Args>
   void Initialize(Ret (Class::*)(Args...)) {
     static std::array<LPCMetaType, sizeof...(Args)> args = {
       GetMetaTypeByType<Args>()...
     };
 
-    m_ret = GetMetaTypeByType<Ret>();
-    m_args = args.data();
-    m_argCount = sizeof...(Args);
+    ret = GetMetaTypeByType<Ret>();
+    argArray = args.data();
+    argCount = sizeof...(Args);
   }
 
   template<typename Class, typename ...Args>
@@ -493,15 +490,14 @@ public:
     static std::array<LPCMetaType, sizeof...(Args)> args = {
       GetMetaTypeByType<Args>()...
     };
-    m_ret = GetMetaType();
-    m_args = args.data();
-    m_argCount = sizeof...(Args);
+    ret = GetMetaType();
+    argArray = args.data();
+    argCount = sizeof...(Args);
   }
 
-protected:
-  LPCMetaType m_ret = nullptr;
-  const LPCMetaType *m_args = nullptr;
-  int m_argCount = 0;
+  LPCMetaType ret = nullptr;
+  const LPCMetaType *argArray = nullptr;
+  int argCount = 0;
 };
 
 // Templated function signature.
@@ -553,6 +549,8 @@ public:
   inline void Initialize() { m_initSignature(&m_signature); }
   // Get the class where the function from.
   inline LPCMetaClass GetClass() const { return m_class(); }
+  // Get the function signature.
+  inline const FunctionSignature &GetSignature() const { return m_signature; }
   // Get the raw function pointer.
   inline PFN_VoidMember Function() const { return m_function; }
 
