@@ -1,6 +1,7 @@
 #ifndef __META_HPP__
 #define __META_HPP__
 
+#include <string.h>
 #include <stdint.h>
 #include <array>
 #include <tuple>
@@ -195,7 +196,7 @@ extern "C" {
 // Example:
 //   META_REGISTER_CONSTANT(CameraGuideZoom, kCameraGuideZoom_None, kCameraGuideZoom_None)
 #define META_REGISTER_CONSTANT(_Type, _Name, _Value) \
-  static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
+  static MetaConstant g_metaConstant_ ## _Name = {\
     #_Name,\
     GetMetaTypeByType<_Type>,\
     _Value\
@@ -205,7 +206,7 @@ extern "C" {
 // Example:
 //   META_REGISTER_ENUM(CameraGuideZoom, kCameraGuideZoom_None)
 #define META_REGISTER_ENUM(_Type, _Name) \
-  static MetaConstantImpl<_Type> g_metaConstant_ ## _Name = {\
+  static MetaConstant g_metaConstant_ ## _Name = {\
     #_Name,\
     GetMetaTypeByType<_Type>,\
     _Name\
@@ -226,6 +227,7 @@ class MetaType;
 class MetaClass;
 class MetaSystemExample;
 class Object;
+template<typename T> class MetaObject;
 
 // FNV-1a hash for cstring.
 struct MetaStrHash {
@@ -313,49 +315,38 @@ LPCMetaClass GetMetaClassByName(
 // Store metadata in KV pairs.
 class MetaData {
 public:
-  // Basic constructor.
-  MetaData(
-    cstring name,
-    void *aux = nullptr
-  )
-    : m_name(name)
-    , m_fields(aux)
-  { }
-
   // Copy constructor.
-  MetaData(
+  explicit MetaData(
     const MetaData &src
   )
-    : m_name(src.m_name)
-    , m_fields(src.m_fields)
+    : m_key(src.m_key)
+    , m_value(src.m_value)
     , m_prev(src.m_prev)
   { }
 
   // Attach a MetaData key-value pair to a MetaObject.
+  template<typename T>
   MetaData(
-    MetaData &target,
+    MetaObject<T> &target,
     cstring key,
     cstring value
-  )
-    : m_name(key)
-    , m_fields((void *)value)
-  {
-    m_prev = (LPMetaData)target.m_fields;
-    target.m_fields = (void *)this;
-  }
+  );
 
-  inline cstring GetName() const { return m_name; }
-  inline void SetName(cstring name) { m_name = name; }
+  inline cstring GetKey() const { return m_key; }
+  inline void SetKey(cstring key) { m_key = key; }
+
+  inline cstring GetValue() const { return m_key; }
+  inline void SetValue(cstring value) { m_value = value; }
+
   inline LPMetaData GetPrev() const { return m_prev; }
-  inline void *GetFields() const { return m_fields; }
 
 protected:
   // Name of the object.
-  cstring m_name = nullptr;
+  cstring m_key = nullptr;
   // External descriptors.
-  void *m_fields = nullptr;
-  // Previous object, build a chain list for initialization.
-  MetaData *m_prev = nullptr;
+  cstring m_value = nullptr;
+  // Previous object.
+  LPMetaData m_prev = nullptr;
 };
 
 // ----------------------------------------------------------------------------
@@ -364,44 +355,91 @@ protected:
 
 // Represents an object.
 template<typename T>
-class MetaObject: public MetaData {
+class MetaObject {
+private:
+  using NoListTag = void *;
+
 public:
+  static constexpr NoListTag nolist = nullptr;
+
+  // The original code of Sky uses subclass pointers rather than base class
+  // pointers as elements of `m_List()`.
   static inline T *&m_List() {
     static T *p = nullptr;
     return p;
   }
 
+  // Construct and add to the list.
+  MetaObject(
+    cstring name
+  )
+    : m_name(name)
+  {
+    m_prev = m_List();
+    // Downcast to a pointer of the subclass.
+    m_List() = static_cast<T *>(this);
+  }
+
+  // Construct without adding to the list.
   MetaObject(
     cstring name,
-    void *aux = nullptr
+    NoListTag &
   )
-    : MetaData(name, aux)
+    : m_name(name)
   { }
 
   MetaObject(
     const MetaObject &src
   )
-    : MetaData(src)
+    : m_name(src.m_name)
+    , m_fields(src.m_fields)
+    , m_prev(src.m_prev)
     , unk_1(src.unk_1)
   { }
 
-  // Get the next(prev) object.
-  inline T *GetPrev() const { return (T *)m_prev; }
+  inline T *GetPrev() const { return m_prev; }
+  inline void SetPrev(T *p) { m_prev = p; }
+
+  inline cstring GetName() const { return m_name; }
+  inline void SetName(cstring name) { m_name = name; }
+
+  inline LPMetaData GetFields() const { return m_fields; }
+  inline void SetFields(LPMetaData p) { m_fields = p; }
 
   // Get a MetaData value.
   inline cstring GetMetaData(
     cstring key
   ) const {
-    for (LPCMetaData p = (LPCMetaData)m_fields; p; p = p->GetPrev())
-      if (!strcmp(p->GetName(), key))
-        return (cstring)p->GetFields();
+    for (LPMetaData p = m_fields; p; p = p->GetPrev())
+      if (!strcmp(p->GetKey(), key))
+        return p->GetValue();
     return nullptr;
   }
 
 protected:
+  // Name of the object.
+  cstring m_name = nullptr;
+  // External descriptors.
+  LPMetaData m_fields = nullptr;
+  // Previous object, build a chain list for initialization.
+  T *m_prev = nullptr;
   // Unknown member, maybe for padding or alignment.
   void *unk_1 = nullptr;
 };
+
+// Deferred definition of MetaData.
+template<typename T>
+MetaData::MetaData(
+  MetaObject<T> &target,
+  cstring key,
+  cstring value
+)
+  : m_key(key)
+  , m_value(value)
+{
+  m_prev = target.GetFields();
+  target.SetFields(this);
+}
 
 // ----------------------------------------------------------------------------
 // [SECTION] MetaFunction
@@ -439,22 +477,12 @@ public:
     : MetaObject<MetaConstant>(name)
     , m_type(type)
   {
-    m_prev = MetaObject<MetaConstant>::m_List(); 
-    MetaObject<MetaConstant>::m_List() = this; 
+    m_prev = m_List(); 
+    m_List() = this;
   }
 
-  inline LPCMetaType GetType() const { return m_type(); }
-
-protected:
-  void *m_valuePtr = nullptr;
-  PFN_RegisterType m_type = nullptr;
-};
-
-// Global constant implement.
-template<typename T>
-class MetaConstantImpl: public MetaConstant {
-public:
-  MetaConstantImpl(
+  template<typename T>
+  MetaConstant(
     cstring name,
     PFN_RegisterType type,
     T value
@@ -465,7 +493,12 @@ public:
     *m_valuePtr = value;
   }
 
-  inline T GetValue() const { return *static_cast<T *>(m_valuePtr); }
+  inline LPCMetaType GetType() const { return m_type(); }
+  template<typename T> inline T GetValue() const { return *static_cast<T *>(m_valuePtr); }
+
+protected:
+  void *m_valuePtr = nullptr;
+  PFN_RegisterType m_type = nullptr;
 };
 
 // ----------------------------------------------------------------------------
