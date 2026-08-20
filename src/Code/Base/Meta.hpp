@@ -356,7 +356,7 @@ protected:
 // Represents an object.
 template<typename T>
 class MetaObject {
-private:
+protected:
   using NoListTag = void *;
 
 public:
@@ -383,7 +383,7 @@ public:
   // Construct without adding to the list.
   MetaObject(
     cstring name,
-    NoListTag &
+    const NoListTag &
   )
     : m_name(name)
   { }
@@ -476,10 +476,7 @@ public:
   )
     : MetaObject<MetaConstant>(name)
     , m_type(type)
-  {
-    m_prev = m_List(); 
-    m_List() = this;
-  }
+  { }
 
   template<typename T>
   MetaConstant(
@@ -561,10 +558,7 @@ public:
     , m_initSignature(InitializeFunctionSignature<Ret (Class::*)(Args...)>)
     , m_applyWrapper(ApplyWrapper<Class, Ret (Class::*)(Args...)>)
     , m_class(GetMetaClassByType<Class *>)
-  {
-    m_prev = MetaObject<MetaMemberFunction>::m_List();
-    MetaObject<MetaMemberFunction>::m_List() = this;
-  }
+  { }
 
   // Allow explicit copy,
   explicit MetaMemberFunction(
@@ -612,12 +606,6 @@ public:
   // void ** can be dereference, is a better intermediate type.
   using PMember = void *VoidClass::*;
 
-private:
-  void ChainList() {
-    m_prev = MetaObject<MetaMemberVariable>::m_List();
-    MetaObject<MetaMemberVariable>::m_List() = this;
-  }
-
 public:
   // Simple member.
   template<typename Class, typename Type>
@@ -629,9 +617,7 @@ public:
     , m_type(GetMetaTypeByType<Type>)
     , m_class(GetMetaClassByType<Class *>)
     , m_address(reinterpret_cast<PMember>(member))
-  {
-    ChainList();
-  }
+  { }
 
   // Dynamic array.
   template<typename Class, typename Type, typename CountType>
@@ -646,9 +632,7 @@ public:
     , m_address(reinterpret_cast<PMember>(member))
     , m_countType(GetMetaTypeByType<CountType>)
     , m_countAddress(reinterpret_cast<PMember>(count))
-  {
-    ChainList();
-  }
+  { }
 
   // Static array.
   template<typename Class, typename Type, typename CountType, std::size_t N>
@@ -664,9 +648,7 @@ public:
     , m_countType(GetMetaTypeByType<CountType>)
     , m_countAddress(reinterpret_cast<PMember>(count))
     , m_staticArraySize(N)
-  {
-    ChainList();
-  }
+  { }
 
   // Allow explicit copy,
   explicit MetaMemberVariable(
@@ -720,26 +702,18 @@ protected:
 
 // Repersents a type.
 class MetaType: public MetaObject<MetaType> {
-protected:
-  using NoChainList_t = void *;
-
 public:
-  static constexpr NoChainList_t noChainList = nullptr;
-
   MetaType(
     cstring name
   )
     : MetaObject<MetaType>(name)
-  {
-    m_prev = MetaObject<MetaType>::m_List();
-    MetaObject<MetaType>::m_List() = this;
-  }
+  { }
 
   MetaType(
     cstring name,
-    const NoChainList_t &
+    const NoListTag &tag
   )
-    : MetaObject<MetaType>(name)
+    : MetaObject<MetaType>(name, tag)
   { }
 
   MetaType(
@@ -1060,6 +1034,13 @@ public:
 
   MetaClass(
     cstring name,
+    const NoListTag &tag
+  )
+    : MetaType(name, tag)
+  { }
+
+  MetaClass(
+    cstring name,
     PFN_RegisterClass parent = nullptr
   )
     : MetaType(name)
@@ -1068,10 +1049,10 @@ public:
 
   MetaClass(
     cstring name,
-    const NoChainList_t &,
-    PFN_RegisterClass parent = nullptr
+    PFN_RegisterClass parent,
+    const NoListTag &tag
   )
-    : MetaType(name, MetaType::noChainList)
+    : MetaType(name, tag)
     , m_parent(parent)
   { }
 
