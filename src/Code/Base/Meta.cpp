@@ -8,7 +8,7 @@
 
 // Place the complete definition in .cpp because we need a complete MetaClass
 // interface.
-inline size_t MetaMemberVariable::Count(
+size_t MetaMemberVariable::Count(
   void *pObj
 ) const {
   // NOTE: The logic here looks strange, but this is the libBootloader.so

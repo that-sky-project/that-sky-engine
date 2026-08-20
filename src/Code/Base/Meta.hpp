@@ -335,7 +335,7 @@ public:
   inline cstring GetKey() const { return m_key; }
   inline void SetKey(cstring key) { m_key = key; }
 
-  inline cstring GetValue() const { return m_key; }
+  inline cstring GetValue() const { return m_value; }
   inline void SetValue(cstring value) { m_value = value; }
 
   inline LPMetaData GetPrev() const { return m_prev; }
@@ -663,7 +663,7 @@ public:
     const MetaMemberVariable &&) = delete;
 
   // Get the count of a member array, from an object.
-  inline size_t Count(void *pObj) const;
+  size_t Count(void *pObj) const;
 
   // Get the original member pointer.
   // WARN: The function below is not type-safe. Please ensure the correct object
