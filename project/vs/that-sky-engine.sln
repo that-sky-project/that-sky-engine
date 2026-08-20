@@ -16,7 +16,14 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testproj", "testproj\testproj.vcxproj", "{13B342B0-6967-4B65-8CDB-348872586274}"
 	ProjectSection(ProjectDependencies) = postProject
 		{36746F61-C86E-44E6-8DE9-6484407AD6B1} = {36746F61-C86E-44E6-8DE9-6484407AD6B1}
+		{846868FC-4C2D-4959-B8FA-B55456F50394} = {846868FC-4C2D-4959-B8FA-B55456F50394}
+		{A3A60E33-4C2C-41B9-97EE-0C17A94E47C4} = {A3A60E33-4C2C-41B9-97EE-0C17A94E47C4}
+		{CFE23793-7429-4E10-8E7B-1865CF2E5DE5} = {CFE23793-7429-4E10-8E7B-1865CF2E5DE5}
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TEST", "TEST", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "googletest", "googletest\googletest.vcxproj", "{A3A60E33-4C2C-41B9-97EE-0C17A94E47C4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,9 +38,15 @@ Global
 		{CFE23793-7429-4E10-8E7B-1865CF2E5DE5}.Release|x64.Build.0 = Release|x64
 		{13B342B0-6967-4B65-8CDB-348872586274}.Release|x64.ActiveCfg = Release|x64
 		{13B342B0-6967-4B65-8CDB-348872586274}.Release|x64.Build.0 = Release|x64
+		{A3A60E33-4C2C-41B9-97EE-0C17A94E47C4}.Release|x64.ActiveCfg = Release|x64
+		{A3A60E33-4C2C-41B9-97EE-0C17A94E47C4}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{13B342B0-6967-4B65-8CDB-348872586274} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{A3A60E33-4C2C-41B9-97EE-0C17A94E47C4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BD1502CC-941D-4D36-B0CB-BE220983D0E1}

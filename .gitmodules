@@ -1,3 +1,6 @@
 [submodule "libraries/lua"]
 	path = libraries/lua
 	url = https://github.com/lua/lua
+[submodule "libraries/googletest"]
+	path = libraries/googletest
+	url = https://github.com/google/googletest
