@@ -1,0 +1,23 @@
+name: MSBuild CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: MSVC Configuration
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          sdk: '10.0.22621.0'
+
+      - name: Compile
+        run: msbuild ${{github.workspace}}/project/vs/that-sky-engine.sln /p:Configuration=Release /p:Platform=x64
+
+      - name: Test
+        run: ${{github.workspace}}/project/vs/testproj/dist/test.exe
