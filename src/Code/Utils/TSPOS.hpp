@@ -24,14 +24,15 @@
 
 class Lock {
 public:
-  ~Lock() { DeleteCriticalSection(&m_mutex); }
-  Lock() { InitializeCriticalSection(&m_mutex); }
-
   Lock(const Lock &) = delete;
   Lock(Lock &&) = delete;
   Lock &operator=(const Lock &) = delete;
 
 #if defined(TSP_OS_WIN)
+
+public:
+  ~Lock() { DeleteCriticalSection(&m_mutex); }
+  Lock() { InitializeCriticalSection(&m_mutex); }
 
 public:
   inline void Initialize() { }
@@ -45,6 +46,10 @@ private:
 #elif defined(TSP_OS_POSIX)
 
 public:
+  Lock() = default;
+  ~Lock() = default;
+
+public:
   inline void Initialize() {
     SkyAssertMsg(!m_initialized, "Lock::Initialize: already initialized!");
     m_initialized = !pthread_mutex_init(&m_mutex, 0LL);
@@ -52,7 +57,7 @@ public:
   }
 
   inline void Terminate() {
-    if (m_initialized && pthread_mutex_destroy(&m_mutex))
+    if (m_initialized && !pthread_mutex_destroy(&m_mutex))
       m_initialized = false;
   }
 
