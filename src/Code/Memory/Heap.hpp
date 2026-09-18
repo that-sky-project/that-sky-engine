@@ -62,10 +62,12 @@ META_DECLARE_CLASS(Heap)
 class Heap: public Object {
 public:
   Heap(): Object(MetaClassId(Heap)) { }
-  ~Heap() = default;
+  ~Heap() { Terminate(); }
 
   inline size_t GetMaxSize() { return m_maxSize; }
   inline bool IsInitialized() { return !!m_mem; }
+  inline void *GetBase() { return m_base; }
+
   size_t GetUsedBytes(bool refresh);
 
   // Initialize the heap with given memory and params.
@@ -75,6 +77,8 @@ public:
     const char *name,
     bool isClearMemory,
     bool isClearAllowed);
+
+  void Terminate();
 
   // Reset the heap.
   void Clear();

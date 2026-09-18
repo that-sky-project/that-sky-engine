@@ -66,6 +66,14 @@ void Heap::Initialize(
   // Ignored the shared lock and lister read/write below.
 }
 
+void Heap::Terminate() {
+  m_BeginLock();
+  destroy_mspace(m_mem);
+  m_mem = 0;
+  m_base = 0;
+  m_EndLock();
+}
+
 void Heap::Clear() {
   SkyAssert(m_isClearAllowed);
 
