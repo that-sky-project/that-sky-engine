@@ -62,7 +62,7 @@ META_DECLARE_CLASS(Heap)
 class Heap: public Object {
 public:
   Heap(): Object(MetaClassId(Heap)) { }
-  ~Heap() { Terminate(); }
+  ~Heap() { if (m_mem) Terminate(); }
 
   inline size_t GetMaxSize() { return m_maxSize; }
   inline bool IsInitialized() { return !!m_mem; }
