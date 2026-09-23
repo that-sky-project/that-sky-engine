@@ -795,7 +795,7 @@ public:
 
   MetaType &operator=(const MetaType &) = default;
 
-  inline LPMetaType GetActive() { return m_self; }
+  inline LPMetaType GetActive() const { return m_self; }
   inline void SetActive(LPMetaType p) { m_self = p; }
 
 protected:
